@@ -45,11 +45,7 @@ except ImportError:
 APP_VERSION = "4.0.0"
 APP_NAME = "PDF Intelligence Converter"
 SESSION_TIMEOUT_MINUTES = 60
-
-# Get deployment mode - locked to production
 DEPLOYMENT_MODE = "production"
-
-# Default password - works without secrets file
 DEFAULT_PASSWORD = "SPAR2024"
 
 # ============================================
@@ -57,12 +53,10 @@ DEFAULT_PASSWORD = "SPAR2024"
 # ============================================
 def get_app_password():
     """Get password - works with or without secrets.toml"""
-    # Priority 1: Environment variable (for cloud deployment)
     env_pw = os.environ.get("APP_PASSWORD", "").strip()
     if env_pw:
         return env_pw
     
-    # Priority 2: Streamlit secrets (if available)
     try:
         if hasattr(st, 'secrets'):
             secrets_dict = dict(st.secrets)
@@ -73,7 +67,6 @@ def get_app_password():
     except:
         pass
     
-    # Priority 3: Default password (always works)
     return DEFAULT_PASSWORD
 
 ORG_PASSWORD = get_app_password()
@@ -427,7 +420,6 @@ def init_db():
                   output_format TEXT,
                   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                   file_size INTEGER)''')
-    # Add default admin user if not exists
     c.execute("SELECT * FROM users WHERE username = 'admin'")
     if not c.fetchone():
         admin_hash = hashlib.sha256("admin123".encode()).hexdigest()
@@ -538,6 +530,19 @@ def extract_pdf_intelligent(pdf_path, mode, extract_tables_flag):
                                 "table": cleaned_table
                             })
     return content
+
+def perform_ocr(pdf_bytes):
+    if not OCR_AVAILABLE:
+        raise ImportError("OCR requires pdf2image and pytesseract. Install with: pip install pdf2image pytesseract")
+    
+    images = convert_from_bytes(pdf_bytes)
+    ocr_text = []
+    
+    for i, image in enumerate(images, 1):
+        text = pytesseract.image_to_string(image)
+        ocr_text.append({"page": i, "content": text})
+    
+    return ocr_text
 
 def convert_to_excel(content, output_buffer, metadata_include=True):
     wb = Workbook()
@@ -869,7 +874,375 @@ st.markdown(
 
 st.markdown("")
 
-# [Rest of the page routing code remains exactly the same as before...]
-# Convert PDF, PDF Tools, History, Settings pages - all identical to previous code
+# Page routing
+if page == "📄 Convert PDF":
+    st.markdown(
+        """
+        <div class="card">
+            <div style="font-size:16px; font-weight:800;">Document Conversion</div>
+            <div class="subtitle">Upload your PDF for intelligent extraction and multi-format conversion.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("")
+    
+    col_input, col_settings = st.columns([2, 1])
+    
+    with col_input:
+        uploaded_file = st.file_uploader(
+            "Choose a PDF file",
+            type=['pdf'],
+            label_visibility="visible",
+            key="convert_upload"
+        )
+        
+        if uploaded_file:
+            st.markdown(
+                f"""
+                <div class="card-soft">
+                    <strong>📄 Document:</strong> {uploaded_file.name}<br>
+                    <strong>📏 Size:</strong> {len(uploaded_file.getvalue()) / 1024:.2f} KB<br>
+                    <strong>📅 Uploaded:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    
+    with col_settings:
+        output_format = st.selectbox(
+            "Convert to", 
+            ["Excel (XLSX)", "Word (DOCX)", "Text (TXT)", "CSV", "JSON", "Markdown", "HTML"]
+        )
+        
+        extraction_modes = ["Smart (Text + Tables)", "Text Only", "Tables Only"]
+        if OCR_AVAILABLE:
+            extraction_modes.append("OCR (Scanned PDFs)")
+        
+        extraction_mode = st.selectbox("Extraction mode", extraction_modes)
+        
+        if not OCR_AVAILABLE:
+            st.markdown(
+                """
+                <div class="card-soft" style="border-left: 3px solid #ffc107;">
+                    <strong>⚠️ OCR Not Available</strong><br>
+                    <small>Install pdf2image and pytesseract for scanned PDF support</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        
+        extract_tables = st.checkbox("Extract tables", value=True)
+    
+    st.markdown("")
+    
+    with st.expander("🔧 Advanced Options"):
+        col_adv1, col_adv2 = st.columns(2)
+        with col_adv1:
+            include_metadata = st.checkbox("Include metadata", value=True)
+        with col_adv2:
+            compress_output = st.checkbox("Compress output", value=False)
+    
+    b1, b2 = st.columns([1, 5])
+    with b1:
+        convert_button = st.button("🔄 Convert", use_container_width=True)
+    with b2:
+        if st.button("Clear", use_container_width=True):
+            st.rerun()
+    
+    if uploaded_file and convert_button:
+        with st.spinner("Processing..."):
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_path = tmp_file.name
+                
+                if extraction_mode == "OCR (Scanned PDFs)":
+                    if not OCR_AVAILABLE:
+                        st.error("OCR is not available.")
+                        st.stop()
+                    content = {"text": [], "tables": [], "pages": 0, "metadata": {}}
+                    content["text"] = perform_ocr(uploaded_file.getvalue())
+                    content["pages"] = len(content["text"])
+                else:
+                    content = extract_pdf_intelligent(tmp_path, extraction_mode, extract_tables)
+                
+                result_buffer = None
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                base_name = Path(uploaded_file.name).stem
+                
+                if output_format == "Excel (XLSX)":
+                    result_buffer = io.BytesIO()
+                    convert_to_excel(content, result_buffer, include_metadata)
+                    filename = f"{base_name}_{timestamp}.xlsx"
+                    mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                
+                elif output_format == "Word (DOCX)":
+                    result_buffer = io.BytesIO()
+                    convert_to_word(content, result_buffer)
+                    filename = f"{base_name}_{timestamp}.docx"
+                    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                
+                elif output_format == "Text (TXT)":
+                    text_content = "\n\n".join([p["content"] for p in content["text"]])
+                    result_buffer = io.BytesIO(text_content.encode('utf-8'))
+                    filename = f"{base_name}_{timestamp}.txt"
+                    mime = "text/plain"
+                
+                elif output_format == "CSV":
+                    result_buffer = io.BytesIO()
+                    text_stream = io.TextIOWrapper(result_buffer, 'utf-8', newline='')
+                    writer = csv.writer(text_stream)
+                    writer.writerow(["Page", "Content"])
+                    for page in content["text"]:
+                        writer.writerow([page["page"], page["content"]])
+                    text_stream.flush()
+                    result_buffer.seek(0)
+                    filename = f"{base_name}_{timestamp}.csv"
+                    mime = "text/csv"
+                
+                elif output_format == "JSON":
+                    json_content = {
+                        "metadata": content["metadata"],
+                        "pages": content["pages"],
+                        "text": [{"page": p["page"], "content": p["content"]} for p in content["text"]],
+                        "tables": [{"page": t["page"], "table": t["table"]} for t in content["tables"]]
+                    }
+                    result_buffer = io.BytesIO(json.dumps(json_content, indent=2, ensure_ascii=False).encode('utf-8'))
+                    filename = f"{base_name}_{timestamp}.json"
+                    mime = "application/json"
+                
+                elif output_format == "Markdown":
+                    md = convert_to_markdown(content)
+                    result_buffer = io.BytesIO(md.encode('utf-8'))
+                    filename = f"{base_name}_{timestamp}.md"
+                    mime = "text/markdown"
+                
+                elif output_format == "HTML":
+                    html_content = convert_to_html(content)
+                    result_buffer = io.BytesIO(html_content.encode('utf-8'))
+                    filename = f"{base_name}_{timestamp}.html"
+                    mime = "text/html"
+                
+                os.unlink(tmp_path)
+                
+                save_conversion_history(
+                    st.session_state.username,
+                    uploaded_file.name,
+                    output_format,
+                    len(uploaded_file.getvalue())
+                )
+                
+                st.markdown("")
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    st.markdown(f"<div class='metric'><div class='metric-k'>Pages</div><div class='metric-v'>{content['pages']}</div></div>", unsafe_allow_html=True)
+                with m2:
+                    st.markdown(f"<div class='metric'><div class='metric-k'>Tables</div><div class='metric-v'>{len(content['tables'])}</div></div>", unsafe_allow_html=True)
+                with m3:
+                    total_words = sum(t.get("word_count", 0) for t in content["text"])
+                    st.markdown(f"<div class='metric'><div class='metric-k'>Words</div><div class='metric-v'>{total_words}</div></div>", unsafe_allow_html=True)
+                
+                st.success(f"✅ Conversion complete! ({output_format})")
+                
+                if result_buffer:
+                    result_buffer.seek(0)
+                    st.download_button(
+                        label=f"💾 Download {filename}",
+                        data=result_buffer.getvalue(),
+                        file_name=filename,
+                        mime=mime,
+                        use_container_width=True
+                    )
+                
+                st.balloons()
+                
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
 
-# ... (rest of the code from the previous version continues here)
+elif page == "🔧 PDF Tools":
+    st.markdown(
+        """
+        <div class="card">
+            <div style="font-size:16px; font-weight:800;">PDF Tools</div>
+            <div class="subtitle">Merge, split, or rotate PDF documents.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("")
+    
+    tool_tab1, tool_tab2, tool_tab3 = st.tabs(["Merge PDFs", "Split PDF", "Rotate PDF"])
+    
+    with tool_tab1:
+        st.markdown("### 📎 Merge Multiple PDFs")
+        uploaded_files = st.file_uploader(
+            "Upload PDFs to merge (2 or more)",
+            type=['pdf'],
+            accept_multiple_files=True,
+            key="merge_upload"
+        )
+        
+        if uploaded_files and len(uploaded_files) > 1:
+            st.markdown(f"**{len(uploaded_files)} files selected**")
+            if st.button("🔄 Merge PDFs", type="primary", use_container_width=True):
+                with st.spinner("Merging..."):
+                    try:
+                        merged_pdf = merge_pdfs(uploaded_files)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        st.success(f"✅ Merged {len(uploaded_files)} PDFs!")
+                        st.download_button(
+                            label="💾 Download Merged PDF",
+                            data=merged_pdf.getvalue(),
+                            file_name=f"merged_{timestamp}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+    
+    with tool_tab2:
+        st.markdown("### ✂️ Split PDF")
+        split_file = st.file_uploader("Upload PDF to split", type=['pdf'], key="split_upload")
+        
+        if split_file:
+            try:
+                with fitz.open(stream=split_file.getvalue(), filetype="pdf") as doc:
+                    total_pages = len(doc)
+                st.markdown(f"**Total pages: {total_pages}**")
+            except:
+                total_pages = 1
+            
+            pages_per_file = st.number_input("Pages per split", min_value=1, value=1)
+            
+            if st.button("🔄 Split PDF", type="primary", use_container_width=True):
+                with st.spinner("Splitting..."):
+                    try:
+                        splits = split_pdf(split_file.getvalue(), pages_per_file)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        
+                        if len(splits) == 1:
+                            st.download_button(
+                                label="💾 Download Split PDF",
+                                data=splits[0].getvalue(),
+                                file_name=f"split_{timestamp}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
+                        else:
+                            zip_buffer = io.BytesIO()
+                            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                                for i, split in enumerate(splits, 1):
+                                    zip_file.writestr(f"split_part_{i:03d}.pdf", split.getvalue())
+                            zip_buffer.seek(0)
+                            st.download_button(
+                                label=f"💾 Download {len(splits)} PDFs (ZIP)",
+                                data=zip_buffer.getvalue(),
+                                file_name=f"splits_{timestamp}.zip",
+                                mime="application/zip",
+                                use_container_width=True
+                            )
+                        st.success(f"✅ Split into {len(splits)} file(s)!")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+    
+    with tool_tab3:
+        st.markdown("### 🔄 Rotate PDF")
+        rotate_file = st.file_uploader("Upload PDF to rotate", type=['pdf'], key="rotate_upload")
+        rotation = st.selectbox("Rotation", [90, 180, 270], format_func=lambda x: f"{x}° clockwise")
+        
+        if rotate_file and st.button("🔄 Rotate PDF", type="primary", use_container_width=True):
+            with st.spinner("Rotating..."):
+                try:
+                    rotated_pdf = rotate_pdf(rotate_file.getvalue(), rotation)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    st.success(f"✅ Rotated by {rotation}°!")
+                    st.download_button(
+                        label="💾 Download Rotated PDF",
+                        data=rotated_pdf.getvalue(),
+                        file_name=f"rotated_{timestamp}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+
+elif page == "📊 History":
+    st.markdown(
+        """
+        <div class="card">
+            <div style="font-size:16px; font-weight:800;">Conversion History</div>
+            <div class="subtitle">View your recent document conversions.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("")
+    
+    history = get_user_history(st.session_state.username)
+    
+    if history:
+        df_history = pd.DataFrame(
+            history,
+            columns=['ID', 'Username', 'Filename', 'Output Format', 'Timestamp', 'File Size']
+        )
+        df_history['File Size'] = df_history['File Size'].apply(lambda x: f"{x/1024:.2f} KB")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"<div class='metric'><div class='metric-k'>Conversions</div><div class='metric-v'>{len(df_history)}</div></div>", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"<div class='metric'><div class='metric-k'>Formats</div><div class='metric-v'>{len(df_history['Output Format'].unique())}</div></div>", unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"<div class='metric'><div class='metric-k'>Files</div><div class='metric-v'>{len(df_history['Filename'].unique())}</div></div>", unsafe_allow_html=True)
+        
+        st.markdown("")
+        st.dataframe(df_history[['Filename', 'Output Format', 'Timestamp', 'File Size']], use_container_width=True)
+        
+        csv_buffer = io.StringIO()
+        df_history.to_csv(csv_buffer, index=False)
+        st.download_button(
+            label="📥 Download History (CSV)",
+            data=csv_buffer.getvalue(),
+            file_name=f"history_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    else:
+        st.info("📭 No conversion history yet.")
+
+elif page == "⚙️ Settings":
+    st.markdown(
+        """
+        <div class="card">
+            <div style="font-size:16px; font-weight:800;">Settings</div>
+            <div class="subtitle">Configure your preferences.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("")
+    
+    st.markdown("### Account Information")
+    st.markdown(f"**Username:** {st.session_state.username}")
+    st.markdown(f"**Session:** {st.session_state.session_id}")
+    st.markdown(f"**OCR Available:** {'Yes' if OCR_AVAILABLE else 'No'}")
+    st.markdown(f"**Version:** {APP_VERSION}")
+
+# Footer
+st.markdown("")
+st.markdown(
+    f"""
+    <div class="card-soft" style="text-align:center;">
+        <div style="font-weight:800;">{APP_NAME} v{APP_VERSION}</div>
+        <div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown("")
+logout_c1, logout_c2, logout_c3 = st.columns([1, 1, 1])
+with logout_c2:
+    if st.button("Logout", use_container_width=True):
+        logout()
