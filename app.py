@@ -91,246 +91,158 @@ def get_org_password():
 ORG_PASSWORD = get_org_password()
 
 def apply_style():
-    st.markdown(f"""
+    st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        
-        * {{
-            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
-        }}
-        
-        html, body, [data-testid="stAppViewContainer"], .stApp {{
-            background: {THEME['bg']} !important;
-            color: {THEME['text']} !important;
-        }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-        [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-        }}
+    * {
+        font-family: 'Inter', sans-serif !important;
+    }
 
-        .block-container {{
-            max-width: 1120px !important;
-            min-width: 900px !important;
-            padding-top: 2.6rem !important;
-            padding-bottom: 2.2rem !important;
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-            margin: 0 auto !important;
-        }}
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: #ffffff !important;
+        color: #111111 !important;
+    }
 
-        .main {{
-            min-width: 960px !important;
-        }}
+    /* Hide Streamlit default chrome */
+    [data-testid="stHeader"], 
+    [data-testid="stToolbar"], 
+    #MainMenu, 
+    footer {
+        display: none !important;
+    }
 
-        /* Sidebar - Always visible with collapse button */
-        section[data-testid="stSidebar"] {{
-            background: #ffffff !important;
-            border-right: 1px solid {THEME['border']} !important;
-            min-width: 250px !important;
-            max-width: 300px !important;
-        }}
-        
-        /* Ensure collapse button is visible */
-        button[kind="header"] {{
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }}
+    /* ✅ FIXED: Responsive container (no min-width) */
+    .block-container {
+        max-width: 1200px !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        margin: 0 auto !important;
+    }
 
-        .card {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 18px !important;
-            padding: 18px 18px !important;
-            margin-bottom: 16px !important;
-        }}
+    /* ✅ FIXED: Sidebar (no forced width) */
+    section[data-testid="stSidebar"] {
+        background: #ffffff !important;
+        border-right: 1px solid rgba(0,0,0,0.10) !important;
+    }
 
-        .card-soft {{
-            background: {THEME['panel2']} !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 18px !important;
-            padding: 18px 18px !important;
-            margin-bottom: 16px !important;
-        }}
+    /* Cards */
+    .card {
+        background: #ffffff;
+        border: 1px solid rgba(0,0,0,0.10);
+        border-radius: 18px;
+        padding: 18px;
+        margin-bottom: 16px;
+    }
 
-        .hero {{
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 22px !important;
-            padding: 26px 22px !important;
-            margin-bottom: 20px !important;
-            background: radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%), linear-gradient(180deg, #ffffff, #ffffff) !important;
-            min-width: 100% !important;
-        }}
+    .card-soft {
+        background: #f7f7f7;
+        border: 1px solid rgba(0,0,0,0.10);
+        border-radius: 18px;
+        padding: 18px;
+        margin-bottom: 16px;
+    }
 
-        /* Login title - Smaller font to fit box */
-        .login-title {{
-            font-size: 24px !important;
-            font-weight: 800 !important;
-            letter-spacing: 0.2px !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
-        }}
+    /* Hero */
+    .hero {
+        border: 1px solid rgba(0,0,0,0.10);
+        border-radius: 22px;
+        padding: 24px;
+        margin-bottom: 20px;
+        background: radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%);
+    }
 
-        .title {{
-            font-size: 30px !important;
-            font-weight: 800 !important;
-            letter-spacing: 0.2px !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
-        }}
+    .title {
+        font-size: 28px;
+        font-weight: 800;
+    }
 
-        .subtitle {{
-            margin-top: 8px !important;
-            color: {THEME['muted']} !important;
-            font-size: 14px !important;
-            line-height: 1.6 !important;
-        }}
+    .subtitle {
+        margin-top: 6px;
+        color: #5b5b5b;
+        font-size: 14px;
+    }
 
-        .chip {{
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            padding: 6px 12px !important;
-            border-radius: 999px !important;
-            border: 1px solid {THEME['border']} !important;
-            background: #ffffff !important;
-            font-size: 12px !important;
-            font-weight: 650 !important;
-            color: {THEME['muted']} !important;
-            white-space: nowrap !important;
-            flex-shrink: 0 !important;
-        }}
+    /* Chips */
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,0.10);
+        font-size: 12px;
+        color: #5b5b5b;
+        background: #ffffff;
+    }
 
-        .chip-dot {{
-            width: 8px !important;
-            height: 8px !important;
-            border-radius: 999px !important;
-            display: inline-block !important;
-            background: {THEME['accent']} !important;
-            flex-shrink: 0 !important;
-        }}
+    .chip-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #d71e28;
+    }
 
-        .metric {{
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 18px !important;
-            padding: 14px 14px !important;
-            background: #ffffff !important;
-            min-width: 150px !important;
-        }}
+    .chip-container {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap; /* ✅ FIXED: allows wrapping instead of shrinking */
+    }
 
-        .metric-k {{
-            font-size: 12px !important;
-            color: {THEME['muted']} !important;
-            font-weight: 700 !important;
-            text-transform: uppercase !important;
-            letter-spacing: 0.9px !important;
-        }}
+    /* Buttons */
+    div.stButton > button {
+        background: #d71e28;
+        color: white;
+        border-radius: 12px;
+        border: none;
+        padding: 0.6rem 1rem;
+        font-weight: 700;
+    }
 
-        .metric-v {{
-            font-size: 26px !important;
-            font-weight: 850 !important;
-            margin-top: 6px !important;
-        }}
+    div.stButton > button:hover {
+        background: #b5161f;
+    }
 
-        .muted {{
-            color: {THEME['muted']} !important;
-        }}
+    /* Inputs */
+    div[data-baseweb="input"], 
+    div[data-baseweb="select"] {
+        border-radius: 12px !important;
+    }
 
-        div.stButton > button {{
-            background: {THEME['accent']} !important;
-            border: 1px solid {THEME['accent']} !important;
-            border-radius: 14px !important;
-            padding: 0.7rem 1rem !important;
-            font-weight: 750 !important;
-            color: #ffffff !important;
-            white-space: nowrap !important;
-            min-width: 100px !important;
-        }}
+    /* Tabs */
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-weight: 700;
+    }
 
-        div.stButton > button:hover {{
-            background: {THEME['accent2']} !important;
-            border: 1px solid {THEME['accent2']} !important;
-        }}
+    .stTabs [aria-selected="true"] {
+        background: rgba(215,30,40,0.10) !important;
+        border: 1px solid rgba(215,30,40,0.3) !important;
+    }
 
-        div[data-baseweb="base-input"] > div,
-        div[data-baseweb="input"] > div,
-        div[data-baseweb="select"] > div {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border2']} !important;
-            border-radius: 14px !important;
-            box-shadow: none !important;
-        }}
+    /* Tables */
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.10);
+    }
 
-        div[data-baseweb="base-input"] input,
-        div[data-baseweb="input"] input {{
-            background: transparent !important;
-            color: {THEME['text']} !important;
-            -webkit-text-fill-color: {THEME['text']} !important;
-        }}
+    /* ✅ Mobile responsiveness */
+    @media (max-width: 768px) {
+        .title {
+            font-size: 22px;
+        }
 
-        .stTabs [data-baseweb="tab"] {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 16px !important;
-            padding: 14px 18px !important;
-            font-weight: 850 !important;
-            font-size: 15px !important;
-            white-space: nowrap !important;
-            flex-shrink: 0 !important;
-        }}
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+    }
 
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-            background: rgba(215,30,40,0.10) !important;
-            border: 1px solid rgba(215,30,40,0.35) !important;
-        }}
-
-        .chip-container {{
-            display: flex !important;
-            justify-content: center !important;
-            gap: 10px !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-        }}
-
-        [data-testid="stDataFrame"] {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 16px !important;
-            overflow: hidden !important;
-        }}
-
-        a {{
-            color: {THEME['accent']} !important;
-            text-decoration: none !important;
-            font-weight: 750 !important;
-        }}
-        
-        a:hover {{
-            color: {THEME['accent2']} !important;
-            text-decoration: underline !important;
-        }}
-
-        @media (max-width: 960px) {{
-            .block-container {{
-                min-width: 100% !important;
-                padding-left: 1rem !important;
-                padding-right: 1rem !important;
-            }}
-            .chip-container {{
-                flex-wrap: wrap !important;
-            }}
-            .title {{
-                font-size: 24px !important;
-            }}
-            .login-title {{
-                font-size: 20px !important;
-            }}
-        }}
     </style>
     """, unsafe_allow_html=True)
-
 apply_style()
 
 # Session management
