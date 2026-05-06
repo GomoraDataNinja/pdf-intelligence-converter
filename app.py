@@ -51,21 +51,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-THEME = {
-    "bg": "#ffffff",
-    "panel": "#ffffff",
-    "panel2": "#f7f7f7",
-    "text": "#111111",
-    "muted": "#5b5b5b",
-    "border": "rgba(0,0,0,0.10)",
-    "border2": "rgba(0,0,0,0.14)",
-    "accent": "#d71e28",
-    "accent2": "#b5161f",
-    "good": "#168a45",
-    "bad": "#d11a2a",
-    "neutral": "#6b7280",
-}
-
 def safe_rerun():
     try:
         if hasattr(st, "rerun"):
@@ -159,6 +144,11 @@ def apply_style():
         font-weight: 800;
     }
 
+    .login-title {
+        font-size: 24px;
+        font-weight: 800;
+    }
+
     .subtitle {
         margin-top: 6px;
         color: #5b5b5b;
@@ -188,7 +178,34 @@ def apply_style():
     .chip-container {
         display: flex;
         gap: 8px;
-        flex-wrap: wrap; /* ✅ FIXED: allows wrapping instead of shrinking */
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Metrics */
+    .metric {
+        border: 1px solid rgba(0,0,0,0.10);
+        border-radius: 18px;
+        padding: 14px;
+        background: #ffffff;
+    }
+
+    .metric-k {
+        font-size: 12px;
+        color: #5b5b5b;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.9px;
+    }
+
+    .metric-v {
+        font-size: 26px;
+        font-weight: 850;
+        margin-top: 6px;
+    }
+
+    .muted {
+        color: #5b5b5b;
     }
 
     /* Buttons */
@@ -229,20 +246,34 @@ def apply_style():
         border: 1px solid rgba(0,0,0,0.10);
     }
 
+    /* Links */
+    a {
+        color: #d71e28;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    a:hover {
+        color: #b5161f;
+        text-decoration: underline;
+    }
+
     /* ✅ Mobile responsiveness */
     @media (max-width: 768px) {
         .title {
             font-size: 22px;
         }
-
+        .login-title {
+            font-size: 20px;
+        }
         .block-container {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
         }
     }
-
     </style>
     """, unsafe_allow_html=True)
+
 apply_style()
 
 # Session management
@@ -572,7 +603,7 @@ def rotate_pdf(pdf_bytes, rotation):
     return output
 
 # ============================================
-# SIGN IN PAGE - Smaller heading to fit box
+# SIGN IN PAGE
 # ============================================
 
 if not st.session_state.authenticated:
