@@ -29,11 +29,8 @@ import warnings
 import logging
 
 warnings.filterwarnings("ignore")
-
-# Suppress Streamlit warnings
 logging.getLogger('streamlit').setLevel(logging.ERROR)
 
-# Try to import OCR-related libraries
 OCR_AVAILABLE = False
 try:
     import pytesseract
@@ -49,9 +46,9 @@ SESSION_TIMEOUT_MINUTES = 60
 
 st.set_page_config(
     page_title=f"{APP_NAME}",
-    page_icon="📊",
+    page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 THEME = {
@@ -113,7 +110,6 @@ def apply_style():
             height: 0 !important;
         }}
 
-        /* LOCKED CONTAINER - Prevents squeezing on deploy */
         .block-container {{
             max-width: 1120px !important;
             min-width: 900px !important;
@@ -124,18 +120,25 @@ def apply_style():
             margin: 0 auto !important;
         }}
 
-        /* Force minimum width for the whole app */
         .main {{
             min-width: 960px !important;
         }}
 
+        /* Sidebar - Always visible with collapse button */
         section[data-testid="stSidebar"] {{
             background: #ffffff !important;
             border-right: 1px solid {THEME['border']} !important;
             min-width: 250px !important;
+            max-width: 300px !important;
+        }}
+        
+        /* Ensure collapse button is visible */
+        button[kind="header"] {{
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }}
 
-        /* Card styles - Locked dimensions */
         .card {{
             background: #ffffff !important;
             border: 1px solid {THEME['border']} !important;
@@ -152,7 +155,6 @@ def apply_style():
             margin-bottom: 16px !important;
         }}
 
-        /* Hero section - Locked */
         .hero {{
             border: 1px solid {THEME['border']} !important;
             border-radius: 22px !important;
@@ -160,6 +162,15 @@ def apply_style():
             margin-bottom: 20px !important;
             background: radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%), linear-gradient(180deg, #ffffff, #ffffff) !important;
             min-width: 100% !important;
+        }}
+
+        /* Login title - Smaller font to fit box */
+        .login-title {{
+            font-size: 24px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.2px !important;
+            margin: 0 !important;
+            white-space: nowrap !important;
         }}
 
         .title {{
@@ -177,7 +188,6 @@ def apply_style():
             line-height: 1.6 !important;
         }}
 
-        /* Chip badges - Locked size */
         .chip {{
             display: inline-flex !important;
             align-items: center !important;
@@ -202,7 +212,6 @@ def apply_style():
             flex-shrink: 0 !important;
         }}
 
-        /* Metrics - Locked */
         .metric {{
             border: 1px solid {THEME['border']} !important;
             border-radius: 18px !important;
@@ -229,7 +238,6 @@ def apply_style():
             color: {THEME['muted']} !important;
         }}
 
-        /* Buttons */
         div.stButton > button {{
             background: {THEME['accent']} !important;
             border: 1px solid {THEME['accent']} !important;
@@ -246,7 +254,6 @@ def apply_style():
             border: 1px solid {THEME['accent2']} !important;
         }}
 
-        /* Input fields */
         div[data-baseweb="base-input"] > div,
         div[data-baseweb="input"] > div,
         div[data-baseweb="select"] > div {{
@@ -263,7 +270,6 @@ def apply_style():
             -webkit-text-fill-color: {THEME['text']} !important;
         }}
 
-        /* Tabs */
         .stTabs [data-baseweb="tab"] {{
             background: #ffffff !important;
             border: 1px solid {THEME['border']} !important;
@@ -280,7 +286,6 @@ def apply_style():
             border: 1px solid rgba(215,30,40,0.35) !important;
         }}
 
-        /* Flex containers - Prevent wrapping */
         .chip-container {{
             display: flex !important;
             justify-content: center !important;
@@ -289,7 +294,6 @@ def apply_style():
             overflow-x: auto !important;
         }}
 
-        /* Dataframe */
         [data-testid="stDataFrame"] {{
             background: #ffffff !important;
             border: 1px solid {THEME['border']} !important;
@@ -297,7 +301,6 @@ def apply_style():
             overflow: hidden !important;
         }}
 
-        /* Links */
         a {{
             color: {THEME['accent']} !important;
             text-decoration: none !important;
@@ -309,7 +312,6 @@ def apply_style():
             text-decoration: underline !important;
         }}
 
-        /* Responsive - Only wrap on very small screens */
         @media (max-width: 960px) {{
             .block-container {{
                 min-width: 100% !important;
@@ -321,6 +323,9 @@ def apply_style():
             }}
             .title {{
                 font-size: 24px !important;
+            }}
+            .login-title {{
+                font-size: 20px !important;
             }}
         }}
     </style>
@@ -655,7 +660,7 @@ def rotate_pdf(pdf_bytes, rotation):
     return output
 
 # ============================================
-# SIGN IN PAGE
+# SIGN IN PAGE - Smaller heading to fit box
 # ============================================
 
 if not st.session_state.authenticated:
@@ -664,7 +669,7 @@ if not st.session_state.authenticated:
     with c2:
         st.markdown(f"""
         <div class="card" style="margin-top: 10vh;">
-            <div class="title" style="text-align:center;">{APP_NAME}</div>
+            <div class="login-title" style="text-align:center;">⚡ {APP_NAME}</div>
             <div class="subtitle" style="text-align:center;">Sign in to continue.</div>
             <div style="height: 14px;"></div>
             <div style="display:flex; justify-content:center;">
@@ -735,7 +740,7 @@ touch()
 # ============================================
 
 with st.sidebar:
-    st.markdown(f"### {st.session_state.username}")
+    st.markdown(f"### ⚡ {st.session_state.username}")
     st.markdown("---")
     page = st.radio("Navigation", ["📄 Convert PDF", "🔧 PDF Tools", "📊 History", "⚙️ Settings"], label_visibility="collapsed")
     st.session_state.page = page
@@ -751,10 +756,9 @@ with st.sidebar:
     if st.button("🚪 Sign Out", use_container_width=True):
         logout()
 
-# Hero header - LOCKED layout with nowrap chips
 st.markdown(f"""
 <div class="hero" style="text-align:center;">
-    <div class="title">{APP_NAME}</div>
+    <div class="title">⚡ {APP_NAME}</div>
     <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
     <div style="height: 12px;"></div>
     <div class="chip-container">
@@ -964,7 +968,7 @@ elif page == "⚙️ Settings":
     st.markdown(f"**Version:** {APP_VERSION}")
 
 st.markdown("")
-st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">{APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">⚡ {APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
 
 st.markdown("")
 logout_c1, logout_c2, logout_c3 = st.columns([1, 1, 1])
