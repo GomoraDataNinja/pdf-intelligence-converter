@@ -1,6 +1,6 @@
 """
 PDF Intelligence Converter - Premium Batsirai Design
-Production Version 4.0.0 - Deployment Locked
+Production Version 4.0.0 - Theme Toggle + Fixed Layout
 Run with: streamlit run app.py
 """
 
@@ -29,11 +29,8 @@ import warnings
 import logging
 
 warnings.filterwarnings("ignore")
-
-# Suppress Streamlit warnings
 logging.getLogger('streamlit').setLevel(logging.ERROR)
 
-# Try to import OCR-related libraries
 OCR_AVAILABLE = False
 try:
     import pytesseract
@@ -47,27 +44,16 @@ APP_NAME = "PDF Intelligence Converter"
 DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production")
 SESSION_TIMEOUT_MINUTES = 60
 
+# Initialize theme in session state
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
+
 st.set_page_config(
     page_title=f"{APP_NAME}",
-    page_icon="📊",
+    page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
-
-THEME = {
-    "bg": "#ffffff",
-    "panel": "#ffffff",
-    "panel2": "#f7f7f7",
-    "text": "#111111",
-    "muted": "#5b5b5b",
-    "border": "rgba(0,0,0,0.10)",
-    "border2": "rgba(0,0,0,0.14)",
-    "accent": "#d71e28",
-    "accent2": "#b5161f",
-    "good": "#168a45",
-    "bad": "#d11a2a",
-    "neutral": "#6b7280",
-}
 
 def safe_rerun():
     try:
@@ -93,236 +79,340 @@ def get_org_password():
 
 ORG_PASSWORD = get_org_password()
 
+def get_theme_colors():
+    """Return theme colors based on current theme"""
+    if st.session_state.theme == "dark":
+        return {
+            "bg": "#0f0f0f",
+            "panel": "#1a1a1a",
+            "panel2": "#1e1e1e",
+            "text": "#ffffff",
+            "muted": "#a0a0a0",
+            "border": "rgba(255,255,255,0.10)",
+            "border2": "rgba(255,255,255,0.14)",
+            "accent": "#ff4444",
+            "accent2": "#cc0000",
+        }
+    else:
+        return {
+            "bg": "#ffffff",
+            "panel": "#ffffff",
+            "panel2": "#f7f7f7",
+            "text": "#111111",
+            "muted": "#5b5b5b",
+            "border": "rgba(0,0,0,0.10)",
+            "border2": "rgba(0,0,0,0.14)",
+            "accent": "#d71e28",
+            "accent2": "#b5161f",
+        }
+
 def apply_style():
+    t = get_theme_colors()
+    is_dark = st.session_state.theme == "dark"
+    
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        
-        * {{
-            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
-        }}
-        
-        html, body, [data-testid="stAppViewContainer"], .stApp {{
-            background: {THEME['bg']} !important;
-            color: {THEME['text']} !important;
-        }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-        [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-        }}
+    * {{
+        font-family: 'Inter', sans-serif !important;
+    }}
 
-        /* LOCKED CONTAINER - Prevents squeezing on deploy */
-        .block-container {{
-            max-width: 1120px !important;
-            min-width: 900px !important;
-            padding-top: 2.6rem !important;
-            padding-bottom: 2.2rem !important;
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-            margin: 0 auto !important;
-        }}
+    html, body, [data-testid="stAppViewContainer"], .stApp {{
+        background: {t['bg']} !important;
+        color: {t['text']} !important;
+    }}
 
-        /* Force minimum width for the whole app */
-        .main {{
-            min-width: 960px !important;
-        }}
+    #MainMenu, footer {{
+        visibility: hidden;
+    }}
 
-        section[data-testid="stSidebar"] {{
-            background: #ffffff !important;
-            border-right: 1px solid {THEME['border']} !important;
-            min-width: 250px !important;
-        }}
+    [data-testid="stHeader"] {{
+        background: transparent !important;
+    }}
 
-        /* Card styles - Locked dimensions */
-        .card {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 18px !important;
-            padding: 18px 18px !important;
-            margin-bottom: 16px !important;
-        }}
+    .block-container {{
+        max-width: 1200px !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        margin: 0 auto !important;
+    }}
 
-        .card-soft {{
-            background: {THEME['panel2']} !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 18px !important;
-            padding: 18px 18px !important;
-            margin-bottom: 16px !important;
-        }}
+    section[data-testid="stSidebar"] {{
+        background: {t['panel']} !important;
+        border-right: 1px solid {t['border']} !important;
+    }}
 
-        /* Hero section - Locked */
-        .hero {{
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 22px !important;
-            padding: 26px 22px !important;
-            margin-bottom: 20px !important;
-            background: radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%), linear-gradient(180deg, #ffffff, #ffffff) !important;
-            min-width: 100% !important;
-        }}
+    .card {{
+        background: {t['panel']};
+        border: 1px solid {t['border']};
+        border-radius: 18px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }}
 
+    .card-soft {{
+        background: {t['panel2']};
+        border: 1px solid {t['border']};
+        border-radius: 18px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }}
+
+    .hero {{
+        border: 1px solid {t['border']};
+        border-radius: 22px;
+        padding: 32px 24px;
+        margin-bottom: 24px;
+        background: {'radial-gradient(900px 260px at 50% -10%, rgba(255,68,68,0.15), transparent 60%)' if is_dark else 'radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%)'};
+    }}
+
+    .title {{
+        font-size: 28px;
+        font-weight: 800;
+        color: {t['text']};
+    }}
+
+    .login-title {{
+        font-size: 24px;
+        font-weight: 800;
+        color: {t['text']};
+    }}
+
+    .subtitle {{
+        margin-top: 8px;
+        color: {t['muted']};
+        font-size: 14px;
+        line-height: 1.6;
+    }}
+
+    .chip {{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid {t['border']};
+        font-size: 12px;
+        color: {t['muted']};
+        background: {t['panel']};
+        white-space: nowrap;
+    }}
+
+    .chip-dot {{
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: {t['accent']};
+    }}
+
+    .chip-container {{
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 16px;
+    }}
+
+    .metric {{
+        border: 1px solid {t['border']};
+        border-radius: 18px;
+        padding: 20px;
+        background: {t['panel']};
+    }}
+
+    .metric-k {{
+        font-size: 11px;
+        color: {t['muted']};
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }}
+
+    .metric-v {{
+        font-size: 28px;
+        font-weight: 850;
+        color: {t['text']};
+    }}
+
+    .muted {{
+        color: {t['muted']};
+    }}
+
+    /* ✅ FIXED: Buttons with proper spacing */
+    div.stButton > button {{
+        background: {t['accent']} !important;
+        color: white !important;
+        border-radius: 12px !important;
+        border: none !important;
+        padding: 12px 20px !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        min-height: 44px !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
+    }}
+
+    div.stButton > button:hover {{
+        background: {t['accent2']} !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }}
+
+    /* ✅ FIXED: Input fields with breathing room */
+    div[data-baseweb="input"],
+    div[data-baseweb="select"] {{
+        border-radius: 12px !important;
+        border: 1px solid {t['border2']} !important;
+        background: {t['panel']} !important;
+    }}
+
+    div[data-baseweb="input"] input,
+    div[data-baseweb="select"] input {{
+        color: {t['text']} !important;
+        padding: 12px !important;
+        font-size: 14px !important;
+    }}
+
+    /* ✅ FIXED: File uploader - spacious */
+    [data-testid="stFileUploader"] {{
+        border: 2px dashed {t['border2']} !important;
+        border-radius: 16px !important;
+        padding: 32px 24px !important;
+        background: {t['panel']} !important;
+        text-align: center !important;
+        transition: all 0.2s ease !important;
+        margin-bottom: 20px !important;
+    }}
+
+    [data-testid="stFileUploader"]:hover {{
+        border-color: {t['accent']} !important;
+        background: {'rgba(255,68,68,0.05)' if is_dark else 'rgba(215,30,40,0.02)'} !important;
+    }}
+
+    [data-testid="stFileUploader"] section {{
+        padding: 0 !important;
+    }}
+
+    [data-testid="stFileUploader"] button {{
+        background: {t['accent']} !important;
+        color: white !important;
+        border-radius: 10px !important;
+        padding: 10px 20px !important;
+        font-weight: 600 !important;
+        margin-top: 12px !important;
+    }}
+
+    [data-testid="stFileUploader"] small {{
+        color: {t['muted']} !important;
+        font-size: 13px !important;
+        margin-top: 8px !important;
+        display: block !important;
+    }}
+
+    /* ✅ FIXED: Expander - clean and spacious */
+    details {{
+        border-radius: 14px !important;
+        border: 1px solid {t['border']} !important;
+        padding: 16px 20px !important;
+        background: {t['panel']} !important;
+        margin: 20px 0 !important;
+    }}
+
+    details summary {{
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        cursor: pointer !important;
+        padding: 8px 0 !important;
+        color: {t['text']} !important;
+    }}
+
+    details summary:hover {{
+        color: {t['accent']} !important;
+    }}
+
+    /* ✅ FIXED: Proper spacing between elements */
+    .stSelectbox {{
+        margin-bottom: 20px !important;
+    }}
+
+    .stCheckbox {{
+        margin-bottom: 16px !important;
+        padding: 8px 0 !important;
+    }}
+
+    .stTextInput {{
+        margin-bottom: 16px !important;
+    }}
+
+    /* Section spacing */
+    .section-spacer {{
+        height: 24px;
+    }}
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 12px !important;
+        padding: 12px 20px !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        margin-right: 8px !important;
+        background: {t['panel']} !important;
+        border: 1px solid {t['border']} !important;
+        color: {t['muted']} !important;
+    }}
+
+    .stTabs [aria-selected="true"] {{
+        background: {'rgba(255,68,68,0.15)' if is_dark else 'rgba(215,30,40,0.10)'} !important;
+        border: 1px solid {t['accent']} !important;
+        color: {t['accent']} !important;
+    }}
+
+    /* Dataframe */
+    [data-testid="stDataFrame"] {{
+        border-radius: 14px !important;
+        border: 1px solid {t['border']} !important;
+        margin: 20px 0 !important;
+    }}
+
+    /* Links */
+    a {{
+        color: {t['accent']} !important;
+        text-decoration: none !important;
+        font-weight: 700 !important;
+    }}
+
+    a:hover {{
+        text-decoration: underline !important;
+    }}
+
+    /* Theme toggle button */
+    .theme-toggle {{
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }}
+
+    /* Mobile */
+    @media (max-width: 768px) {{
         .title {{
-            font-size: 30px !important;
-            font-weight: 800 !important;
-            letter-spacing: 0.2px !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
+            font-size: 22px;
         }}
-
-        .subtitle {{
-            margin-top: 8px !important;
-            color: {THEME['muted']} !important;
-            font-size: 14px !important;
-            line-height: 1.6 !important;
+        .login-title {{
+            font-size: 20px;
         }}
-
-        /* Chip badges - Locked size */
-        .chip {{
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            padding: 6px 12px !important;
-            border-radius: 999px !important;
-            border: 1px solid {THEME['border']} !important;
-            background: #ffffff !important;
-            font-size: 12px !important;
-            font-weight: 650 !important;
-            color: {THEME['muted']} !important;
-            white-space: nowrap !important;
-            flex-shrink: 0 !important;
+        .block-container {{
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
         }}
-
-        .chip-dot {{
-            width: 8px !important;
-            height: 8px !important;
-            border-radius: 999px !important;
-            display: inline-block !important;
-            background: {THEME['accent']} !important;
-            flex-shrink: 0 !important;
+        .hero {{
+            padding: 24px 16px;
         }}
-
-        /* Metrics - Locked */
-        .metric {{
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 18px !important;
-            padding: 14px 14px !important;
-            background: #ffffff !important;
-            min-width: 150px !important;
-        }}
-
-        .metric-k {{
-            font-size: 12px !important;
-            color: {THEME['muted']} !important;
-            font-weight: 700 !important;
-            text-transform: uppercase !important;
-            letter-spacing: 0.9px !important;
-        }}
-
-        .metric-v {{
-            font-size: 26px !important;
-            font-weight: 850 !important;
-            margin-top: 6px !important;
-        }}
-
-        .muted {{
-            color: {THEME['muted']} !important;
-        }}
-
-        /* Buttons */
-        div.stButton > button {{
-            background: {THEME['accent']} !important;
-            border: 1px solid {THEME['accent']} !important;
-            border-radius: 14px !important;
-            padding: 0.7rem 1rem !important;
-            font-weight: 750 !important;
-            color: #ffffff !important;
-            white-space: nowrap !important;
-            min-width: 100px !important;
-        }}
-
-        div.stButton > button:hover {{
-            background: {THEME['accent2']} !important;
-            border: 1px solid {THEME['accent2']} !important;
-        }}
-
-        /* Input fields */
-        div[data-baseweb="base-input"] > div,
-        div[data-baseweb="input"] > div,
-        div[data-baseweb="select"] > div {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border2']} !important;
-            border-radius: 14px !important;
-            box-shadow: none !important;
-        }}
-
-        div[data-baseweb="base-input"] input,
-        div[data-baseweb="input"] input {{
-            background: transparent !important;
-            color: {THEME['text']} !important;
-            -webkit-text-fill-color: {THEME['text']} !important;
-        }}
-
-        /* Tabs */
-        .stTabs [data-baseweb="tab"] {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 16px !important;
-            padding: 14px 18px !important;
-            font-weight: 850 !important;
-            font-size: 15px !important;
-            white-space: nowrap !important;
-            flex-shrink: 0 !important;
-        }}
-
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-            background: rgba(215,30,40,0.10) !important;
-            border: 1px solid rgba(215,30,40,0.35) !important;
-        }}
-
-        /* Flex containers - Prevent wrapping */
-        .chip-container {{
-            display: flex !important;
-            justify-content: center !important;
-            gap: 10px !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-        }}
-
-        /* Dataframe */
-        [data-testid="stDataFrame"] {{
-            background: #ffffff !important;
-            border: 1px solid {THEME['border']} !important;
-            border-radius: 16px !important;
-            overflow: hidden !important;
-        }}
-
-        /* Links */
-        a {{
-            color: {THEME['accent']} !important;
-            text-decoration: none !important;
-            font-weight: 750 !important;
-        }}
-        
-        a:hover {{
-            color: {THEME['accent2']} !important;
-            text-decoration: underline !important;
-        }}
-
-        /* Responsive - Only wrap on very small screens */
-        @media (max-width: 960px) {{
-            .block-container {{
-                min-width: 100% !important;
-                padding-left: 1rem !important;
-                padding-right: 1rem !important;
-            }}
-            .chip-container {{
-                flex-wrap: wrap !important;
-            }}
-            .title {{
-                font-size: 24px !important;
-            }}
-        }}
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -343,6 +433,10 @@ def logout():
         del st.session_state[k]
     safe_rerun()
 
+def toggle_theme():
+    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+    safe_rerun()
+
 # Initialize session state
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -354,6 +448,8 @@ if "username" not in st.session_state:
     st.session_state.username = None
 if "page" not in st.session_state:
     st.session_state.page = "📄 Convert PDF"
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
 
 # Database setup
 def init_db():
@@ -427,7 +523,7 @@ def sign_in(username, password):
         return True
     return False
 
-# PDF Processing functions
+# PDF Processing functions (keep all existing functions)
 def extract_pdf_intelligent(pdf_path, mode, extract_tables_flag):
     content = {"text": [], "tables": [], "pages": 0, "metadata": {}}
     
@@ -659,12 +755,19 @@ def rotate_pdf(pdf_bytes, rotation):
 # ============================================
 
 if not st.session_state.authenticated:
+    # Theme toggle for login page
+    theme_icon = "🌙" if st.session_state.theme == "light" else "☀️"
+    st.markdown(f'<div style="position:fixed;top:20px;right:20px;z-index:9999;">', unsafe_allow_html=True)
+    if st.button(f"{theme_icon} Theme", key="theme_toggle_login"):
+        toggle_theme()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     st.markdown('<div style="height: 1.8rem;"></div>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.25, 1])
     with c2:
         st.markdown(f"""
         <div class="card" style="margin-top: 10vh;">
-            <div class="title" style="text-align:center;">{APP_NAME}</div>
+            <div class="login-title" style="text-align:center;">⚡ {APP_NAME}</div>
             <div class="subtitle" style="text-align:center;">Sign in to continue.</div>
             <div style="height: 14px;"></div>
             <div style="display:flex; justify-content:center;">
@@ -735,7 +838,14 @@ touch()
 # ============================================
 
 with st.sidebar:
-    st.markdown(f"### {st.session_state.username}")
+    st.markdown(f"### ⚡ {st.session_state.username}")
+    st.markdown("---")
+    
+    # Theme toggle in sidebar
+    theme_icon = "🌙 Dark Mode" if st.session_state.theme == "light" else "☀️ Light Mode"
+    if st.button(theme_icon, use_container_width=True, key="theme_toggle_sidebar"):
+        toggle_theme()
+    
     st.markdown("---")
     page = st.radio("Navigation", ["📄 Convert PDF", "🔧 PDF Tools", "📊 History", "⚙️ Settings"], label_visibility="collapsed")
     st.session_state.page = page
@@ -751,12 +861,10 @@ with st.sidebar:
     if st.button("🚪 Sign Out", use_container_width=True):
         logout()
 
-# Hero header - LOCKED layout with nowrap chips
 st.markdown(f"""
 <div class="hero" style="text-align:center;">
-    <div class="title">{APP_NAME}</div>
+    <div class="title">⚡ {APP_NAME}</div>
     <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
-    <div style="height: 12px;"></div>
     <div class="chip-container">
         <div class="chip"><span class="chip-dot"></span> Secure session</div>
         <div class="chip">Session {st.session_state.session_id}</div>
@@ -771,7 +879,7 @@ st.markdown("")
 
 if page == "📄 Convert PDF":
     st.markdown("""<div class="card"><div style="font-size:16px; font-weight:800;">Document Conversion</div><div class="subtitle">Upload your PDF for intelligent extraction and multi-format conversion.</div></div>""", unsafe_allow_html=True)
-    st.markdown("")
+    st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
     
     col_input, col_settings = st.columns([2, 1])
     
@@ -788,8 +896,12 @@ if page == "📄 Convert PDF":
         extraction_mode = st.selectbox("Extraction mode", extraction_modes)
         extract_tables = st.checkbox("Extract tables", value=True)
     
+    st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+    
     with st.expander("🔧 Advanced Options"):
         include_metadata = st.checkbox("Include metadata", value=True)
+    
+    st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
     
     b1, b2 = st.columns([1, 5])
     with b1:
@@ -964,7 +1076,7 @@ elif page == "⚙️ Settings":
     st.markdown(f"**Version:** {APP_VERSION}")
 
 st.markdown("")
-st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">{APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">⚡ {APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
 
 st.markdown("")
 logout_c1, logout_c2, logout_c3 = st.columns([1, 1, 1])
