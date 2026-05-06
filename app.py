@@ -1,6 +1,6 @@
 """
 PDF Intelligence Converter - Premium Batsirai Design
-Production Version 4.0.0 - All Systems Go
+Production Version 4.0.0 - Theme Toggle + Fixed Layout
 Run with: streamlit run app.py
 """
 
@@ -44,6 +44,10 @@ APP_NAME = "PDF Intelligence Converter"
 DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production")
 SESSION_TIMEOUT_MINUTES = 60
 
+# Initialize theme in session state
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
+
 st.set_page_config(
     page_title=f"{APP_NAME}",
     page_icon="⚡",
@@ -75,243 +79,340 @@ def get_org_password():
 
 ORG_PASSWORD = get_org_password()
 
+def get_theme_colors():
+    """Return theme colors based on current theme"""
+    if st.session_state.theme == "dark":
+        return {
+            "bg": "#0f0f0f",
+            "panel": "#1a1a1a",
+            "panel2": "#1e1e1e",
+            "text": "#ffffff",
+            "muted": "#a0a0a0",
+            "border": "rgba(255,255,255,0.10)",
+            "border2": "rgba(255,255,255,0.14)",
+            "accent": "#ff4444",
+            "accent2": "#cc0000",
+        }
+    else:
+        return {
+            "bg": "#ffffff",
+            "panel": "#ffffff",
+            "panel2": "#f7f7f7",
+            "text": "#111111",
+            "muted": "#5b5b5b",
+            "border": "rgba(0,0,0,0.10)",
+            "border2": "rgba(0,0,0,0.14)",
+            "accent": "#d71e28",
+            "accent2": "#b5161f",
+        }
+
 def apply_style():
-    st.markdown("""
+    t = get_theme_colors()
+    is_dark = st.session_state.theme == "dark"
+    
+    st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-    * {
+    * {{
         font-family: 'Inter', sans-serif !important;
-    }
+    }}
 
-    html, body, [data-testid="stAppViewContainer"], .stApp {
-        background: #ffffff !important;
-        color: #111111 !important;
-    }
+    html, body, [data-testid="stAppViewContainer"], .stApp {{
+        background: {t['bg']} !important;
+        color: {t['text']} !important;
+    }}
 
-    /* ✅ FIXED: Only hide menu + footer, KEEP HEADER for sidebar toggle */
-    #MainMenu, 
-    footer {
+    #MainMenu, footer {{
         visibility: hidden;
-    }
+    }}
 
-    /* ✅ Keep header transparent so toggle arrow shows */
-    [data-testid="stHeader"] {
+    [data-testid="stHeader"] {{
         background: transparent !important;
-    }
+    }}
 
-    /* Responsive container */
-    .block-container {
+    .block-container {{
         max-width: 1200px !important;
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
         margin: 0 auto !important;
-    }
+    }}
 
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background: #ffffff !important;
-        border-right: 1px solid rgba(0,0,0,0.10) !important;
-    }
+    section[data-testid="stSidebar"] {{
+        background: {t['panel']} !important;
+        border-right: 1px solid {t['border']} !important;
+    }}
 
-    /* Cards */
-    .card {
-        background: #ffffff;
-        border: 1px solid rgba(0,0,0,0.10);
+    .card {{
+        background: {t['panel']};
+        border: 1px solid {t['border']};
         border-radius: 18px;
-        padding: 18px;
-        margin-bottom: 16px;
-    }
-
-    .card-soft {
-        background: #f7f7f7;
-        border: 1px solid rgba(0,0,0,0.10);
-        border-radius: 18px;
-        padding: 18px;
-        margin-bottom: 16px;
-    }
-
-    /* Hero */
-    .hero {
-        border: 1px solid rgba(0,0,0,0.10);
-        border-radius: 22px;
         padding: 24px;
         margin-bottom: 20px;
-        background: radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%);
-    }
+    }}
 
-    .title {
+    .card-soft {{
+        background: {t['panel2']};
+        border: 1px solid {t['border']};
+        border-radius: 18px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }}
+
+    .hero {{
+        border: 1px solid {t['border']};
+        border-radius: 22px;
+        padding: 32px 24px;
+        margin-bottom: 24px;
+        background: {'radial-gradient(900px 260px at 50% -10%, rgba(255,68,68,0.15), transparent 60%)' if is_dark else 'radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%)'};
+    }}
+
+    .title {{
         font-size: 28px;
         font-weight: 800;
-    }
+        color: {t['text']};
+    }}
 
-    .login-title {
+    .login-title {{
         font-size: 24px;
         font-weight: 800;
-    }
+        color: {t['text']};
+    }}
 
-    .subtitle {
-        margin-top: 6px;
-        color: #5b5b5b;
+    .subtitle {{
+        margin-top: 8px;
+        color: {t['muted']};
         font-size: 14px;
-    }
+        line-height: 1.6;
+    }}
 
-    /* Chips */
-    .chip {
+    .chip {{
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(0,0,0,0.10);
-        font-size: 12px;
-        color: #5b5b5b;
-        background: #ffffff;
-    }
-
-    .chip-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #d71e28;
-    }
-
-    .chip-container {
-        display: flex;
         gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid {t['border']};
+        font-size: 12px;
+        color: {t['muted']};
+        background: {t['panel']};
+        white-space: nowrap;
+    }}
+
+    .chip-dot {{
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: {t['accent']};
+    }}
+
+    .chip-container {{
+        display: flex;
+        gap: 10px;
         flex-wrap: wrap;
         justify-content: center;
-    }
+        margin-top: 16px;
+    }}
 
-    /* Metrics */
-    .metric {
-        border: 1px solid rgba(0,0,0,0.10);
+    .metric {{
+        border: 1px solid {t['border']};
         border-radius: 18px;
-        padding: 14px;
-        background: #ffffff;
-    }
+        padding: 20px;
+        background: {t['panel']};
+    }}
 
-    .metric-k {
-        font-size: 12px;
-        color: #5b5b5b;
+    .metric-k {{
+        font-size: 11px;
+        color: {t['muted']};
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.9px;
-    }
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }}
 
-    .metric-v {
-        font-size: 26px;
+    .metric-v {{
+        font-size: 28px;
         font-weight: 850;
-        margin-top: 6px;
-    }
+        color: {t['text']};
+    }}
 
-    .muted {
-        color: #5b5b5b;
-    }
+    .muted {{
+        color: {t['muted']};
+    }}
 
-    /* Buttons */
-    div.stButton > button {
-        background: #d71e28;
-        color: white;
-        border-radius: 12px;
-        border: none;
-        padding: 0.6rem 1rem;
-        font-weight: 700;
-    }
-
-    div.stButton > button:hover {
-        background: #b5161f;
-    }
-
-    /* Safe input styling - NO internal overrides */
-    div[data-baseweb="input"],
-    div[data-baseweb="select"] {
+    /* ✅ FIXED: Buttons with proper spacing */
+    div.stButton > button {{
+        background: {t['accent']} !important;
+        color: white !important;
         border-radius: 12px !important;
-        border: 1px solid rgba(0,0,0,0.12) !important;
-    }
+        border: none !important;
+        padding: 12px 20px !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        min-height: 44px !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
+    }}
 
-    /* File uploader */
-    [data-testid="stFileUploader"] {
-        border: 1px solid rgba(0,0,0,0.12);
-        border-radius: 14px;
-        padding: 12px;
-        background: #ffffff;
-    }
+    div.stButton > button:hover {{
+        background: {t['accent2']} !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }}
 
-    [data-testid="stFileUploader"] section {
+    /* ✅ FIXED: Input fields with breathing room */
+    div[data-baseweb="input"],
+    div[data-baseweb="select"] {{
+        border-radius: 12px !important;
+        border: 1px solid {t['border2']} !important;
+        background: {t['panel']} !important;
+    }}
+
+    div[data-baseweb="input"] input,
+    div[data-baseweb="select"] input {{
+        color: {t['text']} !important;
+        padding: 12px !important;
+        font-size: 14px !important;
+    }}
+
+    /* ✅ FIXED: File uploader - spacious */
+    [data-testid="stFileUploader"] {{
+        border: 2px dashed {t['border2']} !important;
+        border-radius: 16px !important;
+        padding: 32px 24px !important;
+        background: {t['panel']} !important;
+        text-align: center !important;
+        transition: all 0.2s ease !important;
+        margin-bottom: 20px !important;
+    }}
+
+    [data-testid="stFileUploader"]:hover {{
+        border-color: {t['accent']} !important;
+        background: {'rgba(255,68,68,0.05)' if is_dark else 'rgba(215,30,40,0.02)'} !important;
+    }}
+
+    [data-testid="stFileUploader"] section {{
         padding: 0 !important;
-    }
+    }}
 
-    [data-testid="stFileUploader"] button {
+    [data-testid="stFileUploader"] button {{
+        background: {t['accent']} !important;
+        color: white !important;
         border-radius: 10px !important;
-        padding: 6px 12px !important;
-    }
+        padding: 10px 20px !important;
+        font-weight: 600 !important;
+        margin-top: 12px !important;
+    }}
 
-    /* Expander */
-    details {
-        border-radius: 12px;
-        border: 1px solid rgba(0,0,0,0.12);
-        padding: 8px 12px;
-        background: #ffffff;
-    }
+    [data-testid="stFileUploader"] small {{
+        color: {t['muted']} !important;
+        font-size: 13px !important;
+        margin-top: 8px !important;
+        display: block !important;
+    }}
 
-    details summary {
-        font-weight: 600;
-        cursor: pointer;
-    }
+    /* ✅ FIXED: Expander - clean and spacious */
+    details {{
+        border-radius: 14px !important;
+        border: 1px solid {t['border']} !important;
+        padding: 16px 20px !important;
+        background: {t['panel']} !important;
+        margin: 20px 0 !important;
+    }}
 
-    /* Spacing */
-    .stSelectbox, 
-    .stCheckbox, 
-    .stFileUploader {
-        margin-bottom: 12px;
-    }
+    details summary {{
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        cursor: pointer !important;
+        padding: 8px 0 !important;
+        color: {t['text']} !important;
+    }}
+
+    details summary:hover {{
+        color: {t['accent']} !important;
+    }}
+
+    /* ✅ FIXED: Proper spacing between elements */
+    .stSelectbox {{
+        margin-bottom: 20px !important;
+    }}
+
+    .stCheckbox {{
+        margin-bottom: 16px !important;
+        padding: 8px 0 !important;
+    }}
+
+    .stTextInput {{
+        margin-bottom: 16px !important;
+    }}
+
+    /* Section spacing */
+    .section-spacer {{
+        height: 24px;
+    }}
 
     /* Tabs */
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-weight: 700;
-    }
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 12px !important;
+        padding: 12px 20px !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        margin-right: 8px !important;
+        background: {t['panel']} !important;
+        border: 1px solid {t['border']} !important;
+        color: {t['muted']} !important;
+    }}
 
-    .stTabs [aria-selected="true"] {
-        background: rgba(215,30,40,0.10) !important;
-        border: 1px solid rgba(215,30,40,0.3) !important;
-    }
+    .stTabs [aria-selected="true"] {{
+        background: {'rgba(255,68,68,0.15)' if is_dark else 'rgba(215,30,40,0.10)'} !important;
+        border: 1px solid {t['accent']} !important;
+        color: {t['accent']} !important;
+    }}
 
-    /* Tables */
-    [data-testid="stDataFrame"] {
-        border-radius: 12px;
-        border: 1px solid rgba(0,0,0,0.10);
-    }
+    /* Dataframe */
+    [data-testid="stDataFrame"] {{
+        border-radius: 14px !important;
+        border: 1px solid {t['border']} !important;
+        margin: 20px 0 !important;
+    }}
 
     /* Links */
-    a {
-        color: #d71e28;
-        text-decoration: none;
-        font-weight: 700;
-    }
+    a {{
+        color: {t['accent']} !important;
+        text-decoration: none !important;
+        font-weight: 700 !important;
+    }}
 
-    a:hover {
-        color: #b5161f;
-        text-decoration: underline;
-    }
+    a:hover {{
+        text-decoration: underline !important;
+    }}
 
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-        .title {
+    /* Theme toggle button */
+    .theme-toggle {{
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }}
+
+    /* Mobile */
+    @media (max-width: 768px) {{
+        .title {{
             font-size: 22px;
-        }
-        .login-title {
+        }}
+        .login-title {{
             font-size: 20px;
-        }
-        .block-container {
+        }}
+        .block-container {{
             padding-left: 1rem !important;
             padding-right: 1rem !important;
-        }
-    }
+        }}
+        .hero {{
+            padding: 24px 16px;
+        }}
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -332,6 +433,10 @@ def logout():
         del st.session_state[k]
     safe_rerun()
 
+def toggle_theme():
+    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+    safe_rerun()
+
 # Initialize session state
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -343,6 +448,8 @@ if "username" not in st.session_state:
     st.session_state.username = None
 if "page" not in st.session_state:
     st.session_state.page = "📄 Convert PDF"
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
 
 # Database setup
 def init_db():
@@ -416,7 +523,7 @@ def sign_in(username, password):
         return True
     return False
 
-# PDF Processing functions
+# PDF Processing functions (keep all existing functions)
 def extract_pdf_intelligent(pdf_path, mode, extract_tables_flag):
     content = {"text": [], "tables": [], "pages": 0, "metadata": {}}
     
@@ -648,6 +755,13 @@ def rotate_pdf(pdf_bytes, rotation):
 # ============================================
 
 if not st.session_state.authenticated:
+    # Theme toggle for login page
+    theme_icon = "🌙" if st.session_state.theme == "light" else "☀️"
+    st.markdown(f'<div style="position:fixed;top:20px;right:20px;z-index:9999;">', unsafe_allow_html=True)
+    if st.button(f"{theme_icon} Theme", key="theme_toggle_login"):
+        toggle_theme()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     st.markdown('<div style="height: 1.8rem;"></div>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.25, 1])
     with c2:
@@ -726,6 +840,13 @@ touch()
 with st.sidebar:
     st.markdown(f"### ⚡ {st.session_state.username}")
     st.markdown("---")
+    
+    # Theme toggle in sidebar
+    theme_icon = "🌙 Dark Mode" if st.session_state.theme == "light" else "☀️ Light Mode"
+    if st.button(theme_icon, use_container_width=True, key="theme_toggle_sidebar"):
+        toggle_theme()
+    
+    st.markdown("---")
     page = st.radio("Navigation", ["📄 Convert PDF", "🔧 PDF Tools", "📊 History", "⚙️ Settings"], label_visibility="collapsed")
     st.session_state.page = page
     st.markdown("---")
@@ -742,9 +863,8 @@ with st.sidebar:
 
 st.markdown(f"""
 <div class="hero" style="text-align:center;">
-    <div class="title">{APP_NAME}</div>
+    <div class="title">⚡ {APP_NAME}</div>
     <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
-    <div style="height: 12px;"></div>
     <div class="chip-container">
         <div class="chip"><span class="chip-dot"></span> Secure session</div>
         <div class="chip">Session {st.session_state.session_id}</div>
@@ -759,7 +879,7 @@ st.markdown("")
 
 if page == "📄 Convert PDF":
     st.markdown("""<div class="card"><div style="font-size:16px; font-weight:800;">Document Conversion</div><div class="subtitle">Upload your PDF for intelligent extraction and multi-format conversion.</div></div>""", unsafe_allow_html=True)
-    st.markdown("")
+    st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
     
     col_input, col_settings = st.columns([2, 1])
     
@@ -776,8 +896,12 @@ if page == "📄 Convert PDF":
         extraction_mode = st.selectbox("Extraction mode", extraction_modes)
         extract_tables = st.checkbox("Extract tables", value=True)
     
+    st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+    
     with st.expander("🔧 Advanced Options"):
         include_metadata = st.checkbox("Include metadata", value=True)
+    
+    st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
     
     b1, b2 = st.columns([1, 5])
     with b1:
