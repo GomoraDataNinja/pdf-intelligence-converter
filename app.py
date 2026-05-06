@@ -1,6 +1,6 @@
 """
 PDF Intelligence Converter - Premium Batsirai Design
-Production Version 4.0.0 - Deployment Locked
+Production Version 4.0.0 - Deployment Fixed
 Run with: streamlit run app.py
 """
 
@@ -97,7 +97,7 @@ def apply_style():
         display: none !important;
     }
 
-    /* ✅ FIXED: Responsive container (no min-width) */
+    /* Responsive container */
     .block-container {
         max-width: 1200px !important;
         padding-top: 2rem !important;
@@ -107,7 +107,7 @@ def apply_style():
         margin: 0 auto !important;
     }
 
-    /* ✅ FIXED: Sidebar (no forced width) */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: #ffffff !important;
         border-right: 1px solid rgba(0,0,0,0.10) !important;
@@ -222,10 +222,48 @@ def apply_style():
         background: #b5161f;
     }
 
-    /* Inputs */
-    div[data-baseweb="input"], 
+    /* ✅ FIX 1: Safe input styling - NO internal overrides */
+    div[data-baseweb="input"],
     div[data-baseweb="select"] {
         border-radius: 12px !important;
+        border: 1px solid rgba(0,0,0,0.12) !important;
+    }
+
+    /* ✅ FIX 2: File uploader */
+    [data-testid="stFileUploader"] {
+        border: 1px solid rgba(0,0,0,0.12);
+        border-radius: 14px;
+        padding: 12px;
+        background: #ffffff;
+    }
+
+    [data-testid="stFileUploader"] section {
+        padding: 0 !important;
+    }
+
+    [data-testid="stFileUploader"] button {
+        border-radius: 10px !important;
+        padding: 6px 12px !important;
+    }
+
+    /* ✅ FIX 3: Expander */
+    details {
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.12);
+        padding: 8px 12px;
+        background: #ffffff;
+    }
+
+    details summary {
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    /* ✅ FIX 4: Spacing */
+    .stSelectbox, 
+    .stCheckbox, 
+    .stFileUploader {
+        margin-bottom: 12px;
     }
 
     /* Tabs */
@@ -258,7 +296,7 @@ def apply_style():
         text-decoration: underline;
     }
 
-    /* ✅ Mobile responsiveness */
+    /* Mobile responsiveness */
     @media (max-width: 768px) {
         .title {
             font-size: 22px;
