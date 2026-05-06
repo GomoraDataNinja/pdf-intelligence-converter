@@ -49,9 +49,9 @@ SESSION_TIMEOUT_MINUTES = 60
 
 st.set_page_config(
     page_title=f"{APP_NAME}",
-    page_icon="⚡",  # SPAR lightning bolt icon
+    page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",  # FIXED: Changed from collapsed to expanded
+    initial_sidebar_state="collapsed",
 )
 
 THEME = {
@@ -124,28 +124,15 @@ def apply_style():
             margin: 0 auto !important;
         }}
 
+        /* Force minimum width for the whole app */
         .main {{
             min-width: 960px !important;
         }}
 
-        /* FORCE SIDEBAR VISIBILITY ON DEPLOY */
         section[data-testid="stSidebar"] {{
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            transform: none !important;
-            width: 280px !important;
-            min-width: 250px !important;
-            max-width: 300px !important;
             background: #ffffff !important;
             border-right: 1px solid {THEME['border']} !important;
-            position: relative !important;
-            z-index: 100 !important;
-        }}
-        
-        section[data-testid="stSidebar"] * {{
-            visibility: visible !important;
-            opacity: 1 !important;
+            min-width: 250px !important;
         }}
 
         /* Card styles - Locked dimensions */
@@ -677,7 +664,7 @@ if not st.session_state.authenticated:
     with c2:
         st.markdown(f"""
         <div class="card" style="margin-top: 10vh;">
-            <div class="title" style="text-align:center;">⚡ {APP_NAME}</div>
+            <div class="title" style="text-align:center;">{APP_NAME}</div>
             <div class="subtitle" style="text-align:center;">Sign in to continue.</div>
             <div style="height: 14px;"></div>
             <div style="display:flex; justify-content:center;">
@@ -748,7 +735,7 @@ touch()
 # ============================================
 
 with st.sidebar:
-    st.markdown(f"### ⚡ {st.session_state.username}")
+    st.markdown(f"### {st.session_state.username}")
     st.markdown("---")
     page = st.radio("Navigation", ["📄 Convert PDF", "🔧 PDF Tools", "📊 History", "⚙️ Settings"], label_visibility="collapsed")
     st.session_state.page = page
@@ -764,10 +751,10 @@ with st.sidebar:
     if st.button("🚪 Sign Out", use_container_width=True):
         logout()
 
-# Hero header
+# Hero header - LOCKED layout with nowrap chips
 st.markdown(f"""
 <div class="hero" style="text-align:center;">
-    <div class="title">⚡ {APP_NAME}</div>
+    <div class="title">{APP_NAME}</div>
     <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
     <div style="height: 12px;"></div>
     <div class="chip-container">
@@ -977,7 +964,7 @@ elif page == "⚙️ Settings":
     st.markdown(f"**Version:** {APP_VERSION}")
 
 st.markdown("")
-st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">⚡ {APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">{APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
 
 st.markdown("")
 logout_c1, logout_c2, logout_c3 = st.columns([1, 1, 1])
