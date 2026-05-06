@@ -18,7 +18,6 @@ from PIL import Image
 import io
 from datetime import datetime, timezone
 import json
-import uuid
 import csv
 import sqlite3
 import hashlib
@@ -27,10 +26,14 @@ import zipfile
 import re
 import time
 import warnings
+import logging
 
 warnings.filterwarnings("ignore")
 
-# Try to import OCR-related libraries, but don't fail if they're not available
+# Suppress Streamlit warnings
+logging.getLogger('streamlit').setLevel(logging.ERROR)
+
+# Try to import OCR-related libraries
 OCR_AVAILABLE = False
 try:
     import pytesseract
@@ -39,41 +42,18 @@ try:
 except ImportError:
     pass
 
-# ============================================
-# LOCKED CONFIGURATION - DO NOT CHANGE
-# ============================================
 APP_VERSION = "4.0.0"
 APP_NAME = "PDF Intelligence Converter"
+DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production")
 SESSION_TIMEOUT_MINUTES = 60
-DEPLOYMENT_MODE = "production"
-DEFAULT_PASSWORD = "SPAR2024"
 
-# ============================================
-# PASSWORD SETUP - No secrets file needed
-# ============================================
-def get_app_password():
-    """Get password - works with or without secrets.toml"""
-    env_pw = os.environ.get("APP_PASSWORD", "").strip()
-    if env_pw:
-        return env_pw
-    
-    try:
-        if hasattr(st, 'secrets'):
-            secrets_dict = dict(st.secrets)
-            if 'app_password' in secrets_dict:
-                sec_pw = str(secrets_dict['app_password']).strip()
-                if sec_pw:
-                    return sec_pw
-    except:
-        pass
-    
-    return DEFAULT_PASSWORD
+st.set_page_config(
+    page_title=f"{APP_NAME}",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-ORG_PASSWORD = get_app_password()
-
-# ============================================
-# LOCKED THEME - Consistent across all deployments
-# ============================================
 THEME = {
     "bg": "#ffffff",
     "panel": "#ffffff",
@@ -89,50 +69,42 @@ THEME = {
     "neutral": "#6b7280",
 }
 
-st.set_page_config(
-    page_title=f"{APP_NAME}",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
 def safe_rerun():
-    """Safe rerun function for all Streamlit versions"""
     try:
         if hasattr(st, "rerun"):
             st.rerun()
         elif hasattr(st, "experimental_rerun"):
             st.experimental_rerun()
     except:
-        st.experimental_rerun()
+        pass
+
+def get_org_password():
+    env_pw = os.environ.get("APP_PASSWORD", "").strip()
+    if env_pw:
+        return env_pw
+    try:
+        if hasattr(st, 'secrets') and st.secrets:
+            sec_pw = str(st.secrets.get("app_password", "")).strip()
+            if sec_pw:
+                return sec_pw
+    except:
+        pass
+    return "SPAR2024"
+
+ORG_PASSWORD = get_org_password()
 
 def apply_style():
-    """Locked CSS - Same appearance everywhere"""
-    st.markdown(
-        f"""
-        <style>
-        :root {{
-            --bg: {THEME['bg']};
-            --panel: {THEME['panel']};
-            --panel2: {THEME['panel2']};
-            --text: {THEME['text']};
-            --muted: {THEME['muted']};
-            --border: {THEME['border']};
-            --border2: {THEME['border2']};
-            --accent: {THEME['accent']};
-            --accent2: {THEME['accent2']};
-            --good: {THEME['good']};
-            --bad: {THEME['bad']};
-            --neutral: {THEME['neutral']};
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {{
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
         }}
-
-        html {{
-            color-scheme: light !important;
-        }}
-
+        
         html, body, [data-testid="stAppViewContainer"], .stApp {{
-            background: var(--bg) !important;
-            color: var(--text) !important;
+            background: {THEME['bg']} !important;
+            color: {THEME['text']} !important;
         }}
 
         [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
@@ -141,43 +113,53 @@ def apply_style():
             height: 0 !important;
         }}
 
+        /* LOCKED CONTAINER - Prevents squeezing on deploy */
         .block-container {{
-            max-width: 1120px;
+            max-width: 1120px !important;
+            min-width: 900px !important;
             padding-top: 2.6rem !important;
             padding-bottom: 2.2rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            margin: 0 auto !important;
         }}
 
-        html, body, .stApp, .stMarkdown, .stText, p, span, div, label {{
-            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif !important;
-            color: var(--text) !important;
+        /* Force minimum width for the whole app */
+        .main {{
+            min-width: 960px !important;
         }}
 
         section[data-testid="stSidebar"] {{
             background: #ffffff !important;
-            border-right: 1px solid var(--border) !important;
+            border-right: 1px solid {THEME['border']} !important;
+            min-width: 250px !important;
         }}
 
+        /* Card styles - Locked dimensions */
         .card {{
             background: #ffffff !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid {THEME['border']} !important;
             border-radius: 18px !important;
             padding: 18px 18px !important;
+            margin-bottom: 16px !important;
         }}
 
         .card-soft {{
-            background: var(--panel2) !important;
-            border: 1px solid var(--border) !important;
+            background: {THEME['panel2']} !important;
+            border: 1px solid {THEME['border']} !important;
             border-radius: 18px !important;
             padding: 18px 18px !important;
+            margin-bottom: 16px !important;
         }}
 
+        /* Hero section - Locked */
         .hero {{
-            border: 1px solid var(--border) !important;
+            border: 1px solid {THEME['border']} !important;
             border-radius: 22px !important;
             padding: 26px 22px !important;
-            background:
-                radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%),
-                linear-gradient(180deg, #ffffff, #ffffff) !important;
+            margin-bottom: 20px !important;
+            background: radial-gradient(900px 260px at 50% -10%, rgba(215,30,40,0.10), transparent 60%), linear-gradient(180deg, #ffffff, #ffffff) !important;
+            min-width: 100% !important;
         }}
 
         .title {{
@@ -185,26 +167,30 @@ def apply_style():
             font-weight: 800 !important;
             letter-spacing: 0.2px !important;
             margin: 0 !important;
+            white-space: nowrap !important;
         }}
 
         .subtitle {{
             margin-top: 8px !important;
-            color: var(--muted) !important;
+            color: {THEME['muted']} !important;
             font-size: 14px !important;
             line-height: 1.6 !important;
         }}
 
+        /* Chip badges - Locked size */
         .chip {{
             display: inline-flex !important;
             align-items: center !important;
             gap: 8px !important;
             padding: 6px 12px !important;
             border-radius: 999px !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid {THEME['border']} !important;
             background: #ffffff !important;
             font-size: 12px !important;
             font-weight: 650 !important;
-            color: var(--muted) !important;
+            color: {THEME['muted']} !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
         }}
 
         .chip-dot {{
@@ -212,19 +198,22 @@ def apply_style():
             height: 8px !important;
             border-radius: 999px !important;
             display: inline-block !important;
-            background: var(--accent) !important;
+            background: {THEME['accent']} !important;
+            flex-shrink: 0 !important;
         }}
 
+        /* Metrics - Locked */
         .metric {{
-            border: 1px solid var(--border) !important;
+            border: 1px solid {THEME['border']} !important;
             border-radius: 18px !important;
             padding: 14px 14px !important;
             background: #ffffff !important;
+            min-width: 150px !important;
         }}
 
         .metric-k {{
             font-size: 12px !important;
-            color: var(--muted) !important;
+            color: {THEME['muted']} !important;
             font-weight: 700 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.9px !important;
@@ -237,38 +226,32 @@ def apply_style():
         }}
 
         .muted {{
-            color: var(--muted) !important;
+            color: {THEME['muted']} !important;
         }}
 
-        div.stButton > button,
-        button,
-        button[kind="primary"],
-        button[kind="secondary"],
-        [data-testid="baseButton-primary"] > button,
-        [data-testid="baseButton-secondary"] > button {{
-            background: var(--accent) !important;
-            border: 1px solid var(--accent) !important;
+        /* Buttons */
+        div.stButton > button {{
+            background: {THEME['accent']} !important;
+            border: 1px solid {THEME['accent']} !important;
             border-radius: 14px !important;
             padding: 0.7rem 1rem !important;
             font-weight: 750 !important;
             color: #ffffff !important;
+            white-space: nowrap !important;
+            min-width: 100px !important;
         }}
 
-        div.stButton > button:hover,
-        button:hover,
-        button[kind="primary"]:hover,
-        button[kind="secondary"]:hover,
-        [data-testid="baseButton-primary"] > button:hover,
-        [data-testid="baseButton-secondary"] > button:hover {{
-            background: var(--accent2) !important;
-            border: 1px solid var(--accent2) !important;
+        div.stButton > button:hover {{
+            background: {THEME['accent2']} !important;
+            border: 1px solid {THEME['accent2']} !important;
         }}
 
+        /* Input fields */
         div[data-baseweb="base-input"] > div,
         div[data-baseweb="input"] > div,
         div[data-baseweb="select"] > div {{
             background: #ffffff !important;
-            border: 1px solid var(--border2) !important;
+            border: 1px solid {THEME['border2']} !important;
             border-radius: 14px !important;
             box-shadow: none !important;
         }}
@@ -276,107 +259,72 @@ def apply_style():
         div[data-baseweb="base-input"] input,
         div[data-baseweb="input"] input {{
             background: transparent !important;
-            color: var(--text) !important;
-            -webkit-text-fill-color: var(--text) !important;
+            color: {THEME['text']} !important;
+            -webkit-text-fill-color: {THEME['text']} !important;
         }}
 
-        div[data-baseweb="select"] input,
-        div[data-baseweb="select"] span,
-        div[data-baseweb="select"] svg {{
-            color: var(--text) !important;
-            fill: var(--text) !important;
-        }}
-
-        .stTabs [data-baseweb="tab-list"],
-        div[data-testid="stTabs"] [data-baseweb="tab-list"] {{
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            gap: 14px !important;
-            width: 100% !important;
-            flex-wrap: wrap !important;
-            margin-top: 10px !important;
-            padding: 0 6px !important;
-        }}
-
-        .stTabs [data-baseweb="tab"],
-        div[data-testid="stTabs"] [data-baseweb="tab"] {{
+        /* Tabs */
+        .stTabs [data-baseweb="tab"] {{
             background: #ffffff !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid {THEME['border']} !important;
             border-radius: 16px !important;
-            margin-right: 0 !important;
             padding: 14px 18px !important;
             font-weight: 850 !important;
             font-size: 15px !important;
-            min-width: 150px !important;
-            text-align: center !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
         }}
 
-        .stTabs [data-baseweb="tab"][aria-selected="true"],
-        div[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {{
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{
             background: rgba(215,30,40,0.10) !important;
             border: 1px solid rgba(215,30,40,0.35) !important;
         }}
 
+        /* Flex containers - Prevent wrapping */
+        .chip-container {{
+            display: flex !important;
+            justify-content: center !important;
+            gap: 10px !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+        }}
+
+        /* Dataframe */
         [data-testid="stDataFrame"] {{
             background: #ffffff !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid {THEME['border']} !important;
             border-radius: 16px !important;
             overflow: hidden !important;
         }}
 
-        div[data-baseweb="popover"],
-        div[data-baseweb="popover"] > div {{
-            background: #ffffff !important;
-            color: var(--text) !important;
-            border-radius: 14px !important;
-            border: 1px solid var(--border2) !important;
-            box-shadow: 0 12px 28px rgba(0,0,0,0.10) !important;
-        }}
-
-        ul[role="listbox"],
-        div[role="listbox"] {{
-            background: #ffffff !important;
-            color: var(--text) !important;
-        }}
-
-        li[role="option"] {{
-            background: #ffffff !important;
-            color: var(--text) !important;
-        }}
-
-        li[role="option"]:hover {{
-            background: rgba(215,30,40,0.08) !important;
-        }}
-
-        span[data-baseweb="tag"] {{
-            background: rgba(215,30,40,0.12) !important;
-            border: 1px solid rgba(215,30,40,0.25) !important;
-            color: var(--text) !important;
-        }}
-
-        a, a:visited {{
-            color: var(--accent) !important;
+        /* Links */
+        a {{
+            color: {THEME['accent']} !important;
             text-decoration: none !important;
             font-weight: 750 !important;
         }}
+        
         a:hover {{
-            color: var(--accent2) !important;
+            color: {THEME['accent2']} !important;
             text-decoration: underline !important;
         }}
 
-        @media (max-width: 820px) {{
-            .stTabs [data-baseweb="tab"],
-            div[data-testid="stTabs"] [data-baseweb="tab"] {{
-                min-width: 0 !important;
-                padding: 12px 14px !important;
-                font-size: 14px !important;
+        /* Responsive - Only wrap on very small screens */
+        @media (max-width: 960px) {{
+            .block-container {{
+                min-width: 100% !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }}
+            .chip-container {{
+                flex-wrap: wrap !important;
+            }}
+            .title {{
+                font-size: 24px !important;
             }}
         }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    </style>
+    """, unsafe_allow_html=True)
 
 apply_style()
 
@@ -430,7 +378,6 @@ def init_db():
 
 init_db()
 
-# Database functions
 def verify_user(username, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -531,22 +478,8 @@ def extract_pdf_intelligent(pdf_path, mode, extract_tables_flag):
                             })
     return content
 
-def perform_ocr(pdf_bytes):
-    if not OCR_AVAILABLE:
-        raise ImportError("OCR requires pdf2image and pytesseract. Install with: pip install pdf2image pytesseract")
-    
-    images = convert_from_bytes(pdf_bytes)
-    ocr_text = []
-    
-    for i, image in enumerate(images, 1):
-        text = pytesseract.image_to_string(image)
-        ocr_text.append({"page": i, "content": text})
-    
-    return ocr_text
-
 def convert_to_excel(content, output_buffer, metadata_include=True):
     wb = Workbook()
-    
     ws_summary = wb.active
     ws_summary.title = "Summary"
     
@@ -555,7 +488,7 @@ def convert_to_excel(content, output_buffer, metadata_include=True):
     ws_summary.cell(row=row, column=1).font = Font(bold=True, size=14, color="D71E28")
     row += 2
     
-    if metadata_include:
+    if metadata_include and content["metadata"]:
         ws_summary.cell(row=row, column=1, value="Document Information")
         ws_summary.cell(row=row, column=1).font = Font(bold=True, size=12)
         row += 1
@@ -563,6 +496,7 @@ def convert_to_excel(content, output_buffer, metadata_include=True):
             ws_summary.cell(row=row, column=1, value=key.replace('_', ' ').title())
             ws_summary.cell(row=row, column=2, value=str(value))
             row += 1
+        row += 1
     
     ws_summary.cell(row=row, column=1, value="Statistics")
     ws_summary.cell(row=row, column=1).font = Font(bold=True, size=12)
@@ -577,7 +511,7 @@ def convert_to_excel(content, output_buffer, metadata_include=True):
         ws_content = wb.create_sheet("Content")
         row = 1
         for page_data in content["text"]:
-            ws_content.cell(row=row, column=1, value=f"========== PAGE {page_data['page']} ==========")
+            ws_content.cell(row=row, column=1, value=f"--- PAGE {page_data['page']} ---")
             ws_content.cell(row=row, column=1).font = Font(bold=True, color="D71E28")
             row += 1
             for line in page_data["content"].split('\n'):
@@ -591,16 +525,9 @@ def convert_to_excel(content, output_buffer, metadata_include=True):
             sheet_name = f"Table_{table_data['table_id']}_P{table_data['page']}"[:31]
             ws_table = wb.create_sheet(sheet_name)
             table = table_data["table"]
-            
-            header_fill = PatternFill(start_color="FDE8E8", end_color="FDE8E8", fill_type="solid")
-            header_font = Font(bold=True)
-            
             for r, row_data in enumerate(table, 1):
                 for c, cell in enumerate(row_data, 1):
                     ws_table.cell(row=r, column=c, value=cell)
-                    if r == 1:
-                        ws_table.cell(row=r, column=c).fill = header_fill
-                        ws_table.cell(row=r, column=c).font = header_font
     
     wb.save(output_buffer)
     output_buffer.seek(0)
@@ -619,8 +546,8 @@ def convert_to_word(content, output_buffer):
     if content["tables"]:
         doc.add_heading('Extracted Tables', level=1)
         for table_data in content["tables"]:
-            doc.add_heading(f'Table {table_data["table_id"]} (Page {table_data["page"]})', level=2)
             if table_data["table"]:
+                doc.add_heading(f'Table {table_data["table_id"]} (Page {table_data["page"]})', level=2)
                 table = doc.add_table(rows=len(table_data["table"]), cols=len(table_data["table"][0]))
                 table.style = 'Light List Accent 1'
                 for i, row in enumerate(table_data["table"]):
@@ -633,7 +560,7 @@ def convert_to_word(content, output_buffer):
 
 def convert_to_markdown(content):
     md = []
-    md.append(f"# PDF Intelligence Report\n\n")
+    md.append("# PDF Intelligence Report\n\n")
     md.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
     
     for page_data in content["text"]:
@@ -657,20 +584,17 @@ def convert_to_html(content):
     html = []
     html.append(f"""<!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <title>PDF Intelligence Report</title>
-    <style>
-        body {{ font-family: -apple-system, sans-serif; margin: 40px; }}
-        h1 {{ color: #d71e28; }}
-        table {{ border-collapse: collapse; width: 100%; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; }}
-        th {{ background-color: #FDE8E8; }}
-    </style>
-</head>
+<head><meta charset="UTF-8"><title>PDF Intelligence Report</title>
+<style>
+body{{font-family:sans-serif;margin:40px}}
+h1{{color:#d71e28}}
+table{{border-collapse:collapse;width:100%}}
+th,td{{border:1px solid #ddd;padding:8px}}
+th{{background-color:#FDE8E8}}
+</style></head>
 <body>
-    <h1>PDF Intelligence Report</h1>
-    <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>""")
+<h1>PDF Intelligence Report</h1>
+<p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>""")
     
     for page_data in content["text"]:
         html.append(f'<h2>Page {page_data["page"]}</h2>')
@@ -696,13 +620,9 @@ def convert_to_html(content):
 def merge_pdfs(pdf_files):
     merged = fitz.open()
     for pdf_file in pdf_files:
-        try:
-            pdf_content = pdf_file.read()
-            with fitz.open(stream=pdf_content, filetype="pdf") as pdf:
-                merged.insert_pdf(pdf)
-        except Exception as e:
-            raise Exception(f"Error processing {pdf_file.name}: {str(e)}")
-    
+        pdf_content = pdf_file.read()
+        with fitz.open(stream=pdf_content, filetype="pdf") as pdf:
+            merged.insert_pdf(pdf)
     output = io.BytesIO()
     merged.save(output)
     merged.close()
@@ -710,61 +630,48 @@ def merge_pdfs(pdf_files):
     return output
 
 def split_pdf(pdf_bytes, pages_per_split):
-    try:
-        pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        splits = []
-        
-        for i in range(0, len(pdf_doc), pages_per_split):
-            new_pdf = fitz.open()
-            end = min(i + pages_per_split, len(pdf_doc))
-            new_pdf.insert_pdf(pdf_doc, from_page=i, to_page=end-1)
-            
-            output = io.BytesIO()
-            new_pdf.save(output)
-            new_pdf.close()
-            output.seek(0)
-            splits.append(output)
-        
-        pdf_doc.close()
-        return splits
-    except Exception as e:
-        raise Exception(f"Error splitting PDF: {str(e)}")
+    pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    splits = []
+    for i in range(0, len(pdf_doc), pages_per_split):
+        new_pdf = fitz.open()
+        end = min(i + pages_per_split, len(pdf_doc))
+        new_pdf.insert_pdf(pdf_doc, from_page=i, to_page=end-1)
+        output = io.BytesIO()
+        new_pdf.save(output)
+        new_pdf.close()
+        output.seek(0)
+        splits.append(output)
+    pdf_doc.close()
+    return splits
 
 def rotate_pdf(pdf_bytes, rotation):
-    try:
-        pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        for page in pdf_doc:
-            page.set_rotation(rotation)
-        
-        output = io.BytesIO()
-        pdf_doc.save(output)
-        pdf_doc.close()
-        output.seek(0)
-        return output
-    except Exception as e:
-        raise Exception(f"Error rotating PDF: {str(e)}")
+    pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    for page in pdf_doc:
+        page.set_rotation(rotation)
+    output = io.BytesIO()
+    pdf_doc.save(output)
+    pdf_doc.close()
+    output.seek(0)
+    return output
 
 # ============================================
-# SIGN IN PAGE - Locked Design
+# SIGN IN PAGE
 # ============================================
 
 if not st.session_state.authenticated:
     st.markdown('<div style="height: 1.8rem;"></div>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.25, 1])
     with c2:
-        st.markdown(
-            f"""
-            <div class="card" style="margin-top: 10vh;">
-                <div class="title" style="text-align:center;">{APP_NAME}</div>
-                <div class="subtitle" style="text-align:center;">Sign in to continue.</div>
-                <div style="height: 14px;"></div>
-                <div style="display:flex; justify-content:center;">
-                    <div class="chip"><span class="chip-dot"></span> Version {APP_VERSION} • Production</div>
-                </div>
+        st.markdown(f"""
+        <div class="card" style="margin-top: 10vh;">
+            <div class="title" style="text-align:center;">{APP_NAME}</div>
+            <div class="subtitle" style="text-align:center;">Sign in to continue.</div>
+            <div style="height: 14px;"></div>
+            <div style="display:flex; justify-content:center;">
+                <div class="chip"><span class="chip-dot"></span> Version {APP_VERSION} • Production</div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        </div>
+        """, unsafe_allow_html=True)
 
         tab1, tab2 = st.tabs(["Sign In", "Register"])
         
@@ -772,32 +679,30 @@ if not st.session_state.authenticated:
             with st.form("login_form", clear_on_submit=True):
                 username = st.text_input("Username", placeholder="Enter username")
                 password = st.text_input("Password", type="password", placeholder="Enter password")
-                
                 col1, col2 = st.columns(2)
                 with col1:
                     ok = st.form_submit_button("Sign in", use_container_width=True)
                 with col2:
-                    demo = st.form_submit_button("Demo Access", use_container_width=True)
+                    demo = st.form_submit_button("Demo", use_container_width=True)
 
             if ok:
                 if username and password:
                     if sign_in(username, password):
-                        st.success("✅ Sign in successful!")
+                        st.success("Sign in successful!")
                         safe_rerun()
                     else:
-                        st.error("❌ Invalid credentials")
+                        st.error("Invalid credentials")
                 else:
                     st.warning("Please fill in all fields")
             
             if demo:
-                st.info("Demo credentials: admin / admin123")
+                st.info("Demo: admin / admin123")
         
         with tab2:
             with st.form("register_form", clear_on_submit=True):
                 new_username = st.text_input("New Username", placeholder="Choose username")
-                new_password = st.text_input("New Password", type="password", placeholder="Choose password (min 6 characters)")
+                new_password = st.text_input("New Password", type="password", placeholder="Min 6 characters")
                 confirm_password = st.text_input("Confirm Password", type="password", placeholder="Confirm password")
-                
                 reg = st.form_submit_button("Register", use_container_width=True)
 
             if reg:
@@ -805,19 +710,19 @@ if not st.session_state.authenticated:
                     if new_password == confirm_password:
                         if len(new_password) >= 6:
                             if register_user(new_username, new_password):
-                                st.success("✅ Registration successful! Please sign in.")
+                                st.success("Registration successful! Please sign in.")
                             else:
-                                st.error("❌ Username already exists")
+                                st.error("Username already exists")
                         else:
                             st.warning("Password must be at least 6 characters")
                     else:
-                        st.error("❌ Passwords don't match")
+                        st.error("Passwords don't match")
                 else:
                     st.warning("Please fill in all fields")
 
     st.stop()
 
-# Check session timeout
+# Session timeout check
 if st.session_state.authenticated and is_timed_out():
     st.session_state.authenticated = False
     st.warning("Session timed out. Sign in again.")
@@ -826,21 +731,14 @@ if st.session_state.authenticated and is_timed_out():
 touch()
 
 # ============================================
-# MAIN DASHBOARD - Locked Layout
+# MAIN DASHBOARD
 # ============================================
 
-# Sidebar
 with st.sidebar:
-    st.markdown(f"### 👤 {st.session_state.username}")
+    st.markdown(f"### {st.session_state.username}")
     st.markdown("---")
-    
-    page = st.radio(
-        "Navigation",
-        ["📄 Convert PDF", "🔧 PDF Tools", "📊 History", "⚙️ Settings"],
-        label_visibility="collapsed"
-    )
+    page = st.radio("Navigation", ["📄 Convert PDF", "🔧 PDF Tools", "📊 History", "⚙️ Settings"], label_visibility="collapsed")
     st.session_state.page = page
-    
     st.markdown("---")
     
     history = get_user_history(st.session_state.username)
@@ -853,95 +751,45 @@ with st.sidebar:
     if st.button("🚪 Sign Out", use_container_width=True):
         logout()
 
-# Hero header
-st.markdown(
-    f"""
-    <div class="hero" style="text-align:center;">
-        <div class="title">{APP_NAME}</div>
-        <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
-        <div style="height: 12px;"></div>
-        <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-            <div class="chip"><span class="chip-dot"></span> Secure session</div>
-            <div class="chip">Session {st.session_state.session_id}</div>
-            <div class="chip">Production Mode</div>
-            <div class="chip">Version {APP_VERSION}</div>
-            <div class="chip">User {st.session_state.username}</div>
-        </div>
+# Hero header - LOCKED layout with nowrap chips
+st.markdown(f"""
+<div class="hero" style="text-align:center;">
+    <div class="title">{APP_NAME}</div>
+    <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
+    <div style="height: 12px;"></div>
+    <div class="chip-container">
+        <div class="chip"><span class="chip-dot"></span> Secure session</div>
+        <div class="chip">Session {st.session_state.session_id}</div>
+        <div class="chip">Production</div>
+        <div class="chip">Version {APP_VERSION}</div>
+        <div class="chip">User {st.session_state.username}</div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("")
 
-# Page routing
 if page == "📄 Convert PDF":
-    st.markdown(
-        """
-        <div class="card">
-            <div style="font-size:16px; font-weight:800;">Document Conversion</div>
-            <div class="subtitle">Upload your PDF for intelligent extraction and multi-format conversion.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""<div class="card"><div style="font-size:16px; font-weight:800;">Document Conversion</div><div class="subtitle">Upload your PDF for intelligent extraction and multi-format conversion.</div></div>""", unsafe_allow_html=True)
     st.markdown("")
     
     col_input, col_settings = st.columns([2, 1])
     
     with col_input:
-        uploaded_file = st.file_uploader(
-            "Choose a PDF file",
-            type=['pdf'],
-            label_visibility="visible",
-            key="convert_upload"
-        )
-        
+        uploaded_file = st.file_uploader("Choose a PDF file", type=['pdf'], key="convert_upload")
         if uploaded_file:
-            st.markdown(
-                f"""
-                <div class="card-soft">
-                    <strong>📄 Document:</strong> {uploaded_file.name}<br>
-                    <strong>📏 Size:</strong> {len(uploaded_file.getvalue()) / 1024:.2f} KB<br>
-                    <strong>📅 Uploaded:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"""<div class="card-soft"><strong>📄 Document:</strong> {uploaded_file.name}<br><strong>📏 Size:</strong> {len(uploaded_file.getvalue())/1024:.2f} KB</div>""", unsafe_allow_html=True)
     
     with col_settings:
-        output_format = st.selectbox(
-            "Convert to", 
-            ["Excel (XLSX)", "Word (DOCX)", "Text (TXT)", "CSV", "JSON", "Markdown", "HTML"]
-        )
-        
+        output_format = st.selectbox("Convert to", ["Excel (XLSX)", "Word (DOCX)", "Text (TXT)", "CSV", "JSON", "Markdown", "HTML"])
         extraction_modes = ["Smart (Text + Tables)", "Text Only", "Tables Only"]
         if OCR_AVAILABLE:
             extraction_modes.append("OCR (Scanned PDFs)")
-        
         extraction_mode = st.selectbox("Extraction mode", extraction_modes)
-        
-        if not OCR_AVAILABLE:
-            st.markdown(
-                """
-                <div class="card-soft" style="border-left: 3px solid #ffc107;">
-                    <strong>⚠️ OCR Not Available</strong><br>
-                    <small>Install pdf2image and pytesseract for scanned PDF support</small>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        
         extract_tables = st.checkbox("Extract tables", value=True)
     
-    st.markdown("")
-    
     with st.expander("🔧 Advanced Options"):
-        col_adv1, col_adv2 = st.columns(2)
-        with col_adv1:
-            include_metadata = st.checkbox("Include metadata", value=True)
-        with col_adv2:
-            compress_output = st.checkbox("Compress output", value=False)
+        include_metadata = st.checkbox("Include metadata", value=True)
     
     b1, b2 = st.columns([1, 5])
     with b1:
@@ -957,16 +805,7 @@ if page == "📄 Convert PDF":
                     tmp_file.write(uploaded_file.getvalue())
                     tmp_path = tmp_file.name
                 
-                if extraction_mode == "OCR (Scanned PDFs)":
-                    if not OCR_AVAILABLE:
-                        st.error("OCR is not available.")
-                        st.stop()
-                    content = {"text": [], "tables": [], "pages": 0, "metadata": {}}
-                    content["text"] = perform_ocr(uploaded_file.getvalue())
-                    content["pages"] = len(content["text"])
-                else:
-                    content = extract_pdf_intelligent(tmp_path, extraction_mode, extract_tables)
-                
+                content = extract_pdf_intelligent(tmp_path, extraction_mode, extract_tables)
                 result_buffer = None
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 base_name = Path(uploaded_file.name).stem
@@ -976,19 +815,16 @@ if page == "📄 Convert PDF":
                     convert_to_excel(content, result_buffer, include_metadata)
                     filename = f"{base_name}_{timestamp}.xlsx"
                     mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                
                 elif output_format == "Word (DOCX)":
                     result_buffer = io.BytesIO()
                     convert_to_word(content, result_buffer)
                     filename = f"{base_name}_{timestamp}.docx"
                     mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                
                 elif output_format == "Text (TXT)":
                     text_content = "\n\n".join([p["content"] for p in content["text"]])
                     result_buffer = io.BytesIO(text_content.encode('utf-8'))
                     filename = f"{base_name}_{timestamp}.txt"
                     mime = "text/plain"
-                
                 elif output_format == "CSV":
                     result_buffer = io.BytesIO()
                     text_stream = io.TextIOWrapper(result_buffer, 'utf-8', newline='')
@@ -1000,24 +836,16 @@ if page == "📄 Convert PDF":
                     result_buffer.seek(0)
                     filename = f"{base_name}_{timestamp}.csv"
                     mime = "text/csv"
-                
                 elif output_format == "JSON":
-                    json_content = {
-                        "metadata": content["metadata"],
-                        "pages": content["pages"],
-                        "text": [{"page": p["page"], "content": p["content"]} for p in content["text"]],
-                        "tables": [{"page": t["page"], "table": t["table"]} for t in content["tables"]]
-                    }
+                    json_content = {"metadata": content["metadata"], "pages": content["pages"], "text": [{"page": p["page"], "content": p["content"]} for p in content["text"]], "tables": [{"page": t["page"], "table": t["table"]} for t in content["tables"]]}
                     result_buffer = io.BytesIO(json.dumps(json_content, indent=2, ensure_ascii=False).encode('utf-8'))
                     filename = f"{base_name}_{timestamp}.json"
                     mime = "application/json"
-                
                 elif output_format == "Markdown":
                     md = convert_to_markdown(content)
                     result_buffer = io.BytesIO(md.encode('utf-8'))
                     filename = f"{base_name}_{timestamp}.md"
                     mime = "text/markdown"
-                
                 elif output_format == "HTML":
                     html_content = convert_to_html(content)
                     result_buffer = io.BytesIO(html_content.encode('utf-8'))
@@ -1026,12 +854,7 @@ if page == "📄 Convert PDF":
                 
                 os.unlink(tmp_path)
                 
-                save_conversion_history(
-                    st.session_state.username,
-                    uploaded_file.name,
-                    output_format,
-                    len(uploaded_file.getvalue())
-                )
+                save_conversion_history(st.session_state.username, uploaded_file.name, output_format, len(uploaded_file.getvalue()))
                 
                 st.markdown("")
                 m1, m2, m3 = st.columns(3)
@@ -1043,68 +866,35 @@ if page == "📄 Convert PDF":
                     total_words = sum(t.get("word_count", 0) for t in content["text"])
                     st.markdown(f"<div class='metric'><div class='metric-k'>Words</div><div class='metric-v'>{total_words}</div></div>", unsafe_allow_html=True)
                 
-                st.success(f"✅ Conversion complete! ({output_format})")
+                st.success(f"Conversion complete! ({output_format})")
                 
                 if result_buffer:
                     result_buffer.seek(0)
-                    st.download_button(
-                        label=f"💾 Download {filename}",
-                        data=result_buffer.getvalue(),
-                        file_name=filename,
-                        mime=mime,
-                        use_container_width=True
-                    )
+                    st.download_button(label=f"💾 Download {filename}", data=result_buffer.getvalue(), file_name=filename, mime=mime, use_container_width=True)
                 
                 st.balloons()
                 
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f"Error: {str(e)}")
 
 elif page == "🔧 PDF Tools":
-    st.markdown(
-        """
-        <div class="card">
-            <div style="font-size:16px; font-weight:800;">PDF Tools</div>
-            <div class="subtitle">Merge, split, or rotate PDF documents.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""<div class="card"><div style="font-size:16px; font-weight:800;">PDF Tools</div><div class="subtitle">Merge, split, or rotate PDF documents.</div></div>""", unsafe_allow_html=True)
     st.markdown("")
     
     tool_tab1, tool_tab2, tool_tab3 = st.tabs(["Merge PDFs", "Split PDF", "Rotate PDF"])
     
     with tool_tab1:
-        st.markdown("### 📎 Merge Multiple PDFs")
-        uploaded_files = st.file_uploader(
-            "Upload PDFs to merge (2 or more)",
-            type=['pdf'],
-            accept_multiple_files=True,
-            key="merge_upload"
-        )
-        
+        uploaded_files = st.file_uploader("Upload PDFs to merge (2 or more)", type=['pdf'], accept_multiple_files=True, key="merge_upload")
         if uploaded_files and len(uploaded_files) > 1:
-            st.markdown(f"**{len(uploaded_files)} files selected**")
-            if st.button("🔄 Merge PDFs", type="primary", use_container_width=True):
+            if st.button("🔄 Merge PDFs", use_container_width=True):
                 with st.spinner("Merging..."):
-                    try:
-                        merged_pdf = merge_pdfs(uploaded_files)
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        st.success(f"✅ Merged {len(uploaded_files)} PDFs!")
-                        st.download_button(
-                            label="💾 Download Merged PDF",
-                            data=merged_pdf.getvalue(),
-                            file_name=f"merged_{timestamp}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                    except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
+                    merged_pdf = merge_pdfs(uploaded_files)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    st.success(f"Merged {len(uploaded_files)} PDFs!")
+                    st.download_button(label="💾 Download Merged PDF", data=merged_pdf.getvalue(), file_name=f"merged_{timestamp}.pdf", mime="application/pdf", use_container_width=True)
     
     with tool_tab2:
-        st.markdown("### ✂️ Split PDF")
         split_file = st.file_uploader("Upload PDF to split", type=['pdf'], key="split_upload")
-        
         if split_file:
             try:
                 with fitz.open(stream=split_file.getvalue(), filetype="pdf") as doc:
@@ -1114,78 +904,39 @@ elif page == "🔧 PDF Tools":
                 total_pages = 1
             
             pages_per_file = st.number_input("Pages per split", min_value=1, value=1)
-            
-            if st.button("🔄 Split PDF", type="primary", use_container_width=True):
+            if st.button("🔄 Split PDF", use_container_width=True):
                 with st.spinner("Splitting..."):
-                    try:
-                        splits = split_pdf(split_file.getvalue(), pages_per_file)
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        
-                        if len(splits) == 1:
-                            st.download_button(
-                                label="💾 Download Split PDF",
-                                data=splits[0].getvalue(),
-                                file_name=f"split_{timestamp}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True
-                            )
-                        else:
-                            zip_buffer = io.BytesIO()
-                            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                                for i, split in enumerate(splits, 1):
-                                    zip_file.writestr(f"split_part_{i:03d}.pdf", split.getvalue())
-                            zip_buffer.seek(0)
-                            st.download_button(
-                                label=f"💾 Download {len(splits)} PDFs (ZIP)",
-                                data=zip_buffer.getvalue(),
-                                file_name=f"splits_{timestamp}.zip",
-                                mime="application/zip",
-                                use_container_width=True
-                            )
-                        st.success(f"✅ Split into {len(splits)} file(s)!")
-                    except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
+                    splits = split_pdf(split_file.getvalue(), pages_per_file)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    
+                    if len(splits) == 1:
+                        st.download_button(label="💾 Download Split PDF", data=splits[0].getvalue(), file_name=f"split_{timestamp}.pdf", mime="application/pdf", use_container_width=True)
+                    else:
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                            for i, split in enumerate(splits, 1):
+                                zip_file.writestr(f"split_part_{i:03d}.pdf", split.getvalue())
+                        zip_buffer.seek(0)
+                        st.download_button(label=f"💾 Download {len(splits)} PDFs (ZIP)", data=zip_buffer.getvalue(), file_name=f"splits_{timestamp}.zip", mime="application/zip", use_container_width=True)
+                    st.success(f"Split into {len(splits)} file(s)!")
     
     with tool_tab3:
-        st.markdown("### 🔄 Rotate PDF")
         rotate_file = st.file_uploader("Upload PDF to rotate", type=['pdf'], key="rotate_upload")
         rotation = st.selectbox("Rotation", [90, 180, 270], format_func=lambda x: f"{x}° clockwise")
-        
-        if rotate_file and st.button("🔄 Rotate PDF", type="primary", use_container_width=True):
+        if rotate_file and st.button("🔄 Rotate PDF", use_container_width=True):
             with st.spinner("Rotating..."):
-                try:
-                    rotated_pdf = rotate_pdf(rotate_file.getvalue(), rotation)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    st.success(f"✅ Rotated by {rotation}°!")
-                    st.download_button(
-                        label="💾 Download Rotated PDF",
-                        data=rotated_pdf.getvalue(),
-                        file_name=f"rotated_{timestamp}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+                rotated_pdf = rotate_pdf(rotate_file.getvalue(), rotation)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                st.success(f"Rotated by {rotation}°!")
+                st.download_button(label="💾 Download Rotated PDF", data=rotated_pdf.getvalue(), file_name=f"rotated_{timestamp}.pdf", mime="application/pdf", use_container_width=True)
 
 elif page == "📊 History":
-    st.markdown(
-        """
-        <div class="card">
-            <div style="font-size:16px; font-weight:800;">Conversion History</div>
-            <div class="subtitle">View your recent document conversions.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""<div class="card"><div style="font-size:16px; font-weight:800;">Conversion History</div><div class="subtitle">View your recent document conversions.</div></div>""", unsafe_allow_html=True)
     st.markdown("")
     
     history = get_user_history(st.session_state.username)
-    
     if history:
-        df_history = pd.DataFrame(
-            history,
-            columns=['ID', 'Username', 'Filename', 'Output Format', 'Timestamp', 'File Size']
-        )
+        df_history = pd.DataFrame(history, columns=['ID', 'Username', 'Filename', 'Output Format', 'Timestamp', 'File Size'])
         df_history['File Size'] = df_history['File Size'].apply(lambda x: f"{x/1024:.2f} KB")
         
         col1, col2, col3 = st.columns(3)
@@ -1196,50 +947,24 @@ elif page == "📊 History":
         with col3:
             st.markdown(f"<div class='metric'><div class='metric-k'>Files</div><div class='metric-v'>{len(df_history['Filename'].unique())}</div></div>", unsafe_allow_html=True)
         
-        st.markdown("")
         st.dataframe(df_history[['Filename', 'Output Format', 'Timestamp', 'File Size']], use_container_width=True)
         
         csv_buffer = io.StringIO()
         df_history.to_csv(csv_buffer, index=False)
-        st.download_button(
-            label="📥 Download History (CSV)",
-            data=csv_buffer.getvalue(),
-            file_name=f"history_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+        st.download_button(label="📥 Download History (CSV)", data=csv_buffer.getvalue(), file_name=f"history_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
     else:
-        st.info("📭 No conversion history yet.")
+        st.info("No conversion history yet.")
 
 elif page == "⚙️ Settings":
-    st.markdown(
-        """
-        <div class="card">
-            <div style="font-size:16px; font-weight:800;">Settings</div>
-            <div class="subtitle">Configure your preferences.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""<div class="card"><div style="font-size:16px; font-weight:800;">Settings</div><div class="subtitle">Configure your preferences.</div></div>""", unsafe_allow_html=True)
     st.markdown("")
-    
     st.markdown("### Account Information")
     st.markdown(f"**Username:** {st.session_state.username}")
     st.markdown(f"**Session:** {st.session_state.session_id}")
-    st.markdown(f"**OCR Available:** {'Yes' if OCR_AVAILABLE else 'No'}")
     st.markdown(f"**Version:** {APP_VERSION}")
 
-# Footer
 st.markdown("")
-st.markdown(
-    f"""
-    <div class="card-soft" style="text-align:center;">
-        <div style="font-weight:800;">{APP_NAME} v{APP_VERSION}</div>
-        <div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown(f"""<div class="card-soft" style="text-align:center;"><div style="font-weight:800;">{APP_NAME} v{APP_VERSION}</div><div class="subtitle">Secure session • {datetime.now().strftime("%Y-%m-%d %H:%M")} • User: {st.session_state.username}</div></div>""", unsafe_allow_html=True)
 
 st.markdown("")
 logout_c1, logout_c2, logout_c3 = st.columns([1, 1, 1])
