@@ -1,6 +1,6 @@
 """
 PDF Intelligence Converter - Premium Batsirai Design
-Production Version 4.0.0 - Deployment Fixed
+Production Version 4.0.0 - All Systems Go
 Run with: streamlit run app.py
 """
 
@@ -89,12 +89,15 @@ def apply_style():
         color: #111111 !important;
     }
 
-    /* Hide Streamlit default chrome */
-    [data-testid="stHeader"], 
-    [data-testid="stToolbar"], 
+    /* ✅ FIXED: Only hide menu + footer, KEEP HEADER for sidebar toggle */
     #MainMenu, 
     footer {
-        display: none !important;
+        visibility: hidden;
+    }
+
+    /* ✅ Keep header transparent so toggle arrow shows */
+    [data-testid="stHeader"] {
+        background: transparent !important;
     }
 
     /* Responsive container */
@@ -222,14 +225,14 @@ def apply_style():
         background: #b5161f;
     }
 
-    /* ✅ FIX 1: Safe input styling - NO internal overrides */
+    /* Safe input styling - NO internal overrides */
     div[data-baseweb="input"],
     div[data-baseweb="select"] {
         border-radius: 12px !important;
         border: 1px solid rgba(0,0,0,0.12) !important;
     }
 
-    /* ✅ FIX 2: File uploader */
+    /* File uploader */
     [data-testid="stFileUploader"] {
         border: 1px solid rgba(0,0,0,0.12);
         border-radius: 14px;
@@ -246,7 +249,7 @@ def apply_style():
         padding: 6px 12px !important;
     }
 
-    /* ✅ FIX 3: Expander */
+    /* Expander */
     details {
         border-radius: 12px;
         border: 1px solid rgba(0,0,0,0.12);
@@ -259,7 +262,7 @@ def apply_style():
         cursor: pointer;
     }
 
-    /* ✅ FIX 4: Spacing */
+    /* Spacing */
     .stSelectbox, 
     .stCheckbox, 
     .stFileUploader {
