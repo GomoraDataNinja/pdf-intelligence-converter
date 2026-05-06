@@ -742,7 +742,7 @@ with st.sidebar:
 
 st.markdown(f"""
 <div class="hero" style="text-align:center;">
-    <div class="title">⚡ {APP_NAME}</div>
+    <div class="title">{APP_NAME}</div>
     <div class="subtitle">Upload your PDF document. Extract content, convert formats, and manage your documents intelligently.</div>
     <div style="height: 12px;"></div>
     <div class="chip-container">
